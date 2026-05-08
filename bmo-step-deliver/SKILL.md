@@ -1,6 +1,6 @@
 ---
 name: step-deliver
-description: Use when the user wants agent work delivered with clear scope, verification, runnable commands, and a human review checklist (specific files + risks). Optional multi-step slicing only when the task benefits from it—small tasks skip slicing and lean on review quality.
+description: Use when the user wants agent work delivered with clear scope, verification, runnable commands, and a human review checklist—prefer per-file “what to review” prompts (intent, contracts, risks), not only generic categories. When the user attaches this skill alongside a multi-unit plan (U1/U2/… or explicit numbered steps), default to sliced delivery with a pause between units unless the user explicitly opts into single-pass.
 ---
 
 # Step-deliver
@@ -14,7 +14,9 @@ This skill defines a **delivery standard** for agent work: outcomes are **easy t
 - **How to run**: copy-paste commands or an honest “cannot run here” narrative.
 - **Review handoff**: paths, intent, contracts, and risks—without rereading the chat.
 
-**Slicing is optional.** Use multiple steps only when splitting **reduces risk**, **shrinks reviewable diffs**, or the user asked for paced delivery. For small, cohesive work, do **one unit of work** and spend effort on verification and the review guide—not artificial intermediate commits.
+**Slicing is optional for tiny work, but not optional for plan-shaped work.** If the user provides (or references) a plan with multiple implementation units, treat those units as **review seams** by default: implement **one unit**, verify, hand off, then **pause** for confirmation before starting the next unit—unless the user explicitly requests single-pass mode.
+
+For genuinely small, single-boundary work, do **one unit of work** and spend effort on verification and the review handoff—not artificial intermediate commits.
 
 ---
 
@@ -37,23 +39,31 @@ Typical triggers:
 
 Pick one at the start (explicitly or implicitly):
 
-### A) Single-pass mode (default for small / cohesive work)
+### A) Single-pass mode (default only when the work is truly one boundary)
 
 One scoped change → verify → review handoff.  
 No mandatory pause unless the user asked for one.
 
-### B) Sliced mode (opt-in)
+Use single-pass when **all** of the following are true:
+
+- The user did **not** attach a multi-unit plan (no `U1`/`U2`/… style units, no explicit “Step 1/2/3”, no phased checklist), **or** the user explicitly opts in with language like **“single PR”**, **“one shot”**, **“don’t pause”**.
+- The change is **one reviewable concern** (one subsystem, one contract surface, one failure domain) and reviewers can reason about the diff without a forced seam.
+
+### B) Sliced mode (default when a plan already names multiple units)
 
 Multiple **units of work**, each shippable: builds, tests that apply stay green, repo stays coherent.
 
-Use sliced mode when **splitting genuinely helps**, for example:
+**Default to sliced mode** when **any** of the following is true:
 
-- Multiple **independent failure domains** (DB + API + client).
-- A natural **rollback seam** between steps.
+- The user invokes **`/bmo-step-deliver`** **and** the task is backed by a plan with **2+ implementation units** (`U1`, `U2`, …) or explicit numbered phases/steps.
+- The change spans **multiple independent failure domains** (DB + API + client, proto + generated + handlers, bootstrap + docs + tests).
+- There is a natural **rollback seam** between steps (delete public surface → adjust bootstrap/config → update docs/tests).
 - Reviewers would otherwise face one **unreviewable** diff.
 - The user asked for **step-by-step** delivery.
 
 **Do not slice** when the change is already small, or splitting would create **incoherent intermediate states** just to satisfy a process.
+
+**Anti-pattern to avoid:** collapsing a multi-unit plan into one mega-change **solely** because it is faster for the agent. Speed is not a substitute for reviewability when the plan already promised seams.
 
 ---
 
@@ -102,6 +112,8 @@ Pick the **narrowest meaningful proof**:
 
 **Codegen / generators:** If a step runs codegen (Protobuf, OpenAPI, GraphQL, etc.), treat output layout shifts as normal: run generation, then **search for broken imports** and fix call sites before declaring done.
 
+**Stale generator caches:** If regenerated output still does not match the edited schema or proto (same RPCs/messages as before), the tool may be reading a **cached copy** instead of your latest files. Check the generator config for a **cache directory** (example: Protorox `cacheDir` / `.proto-cache`), delete the relevant cached artifact or clear the cache, regenerate, and **mention this in the review handoff** so reviewers know the checked-in generated files truly reflect the source.
+
 **Tool output vs config:** If CLI warnings contradict expectations (e.g. a “generation” flag is a no-op), note it in the review handoff—config examples elsewhere may not match the installed tool version.
 
 **Lockfiles / installs:** If `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml` changes without an intentional dependency change in scope, **stop and classify**: accidental drift vs deliberate bump—do not silently ship unexplained lock churn.
@@ -134,9 +146,30 @@ Make review fast: **where to look**, **what changed in intent**, **what could br
 
 2. **Files to review** — Bullets with **repo-relative paths**. Group by concern when many files repeat one theme.
 
-3. **What to pay attention to** — Use the categories below; pick those that apply. Put **most important** first.
+3. **What to pay attention to** — Go beyond labels like “contracts” or “tests”: reviewers should not have to **guess what to grep for** or **which assumption might be wrong**.
 
-**Reviewer checklist categories (general):**
+**Minimum detail bar**
+
+Each important file (or each logical group of tiny edits) should get at least **one concrete review prompt**—a sentence that tells the reviewer *what to verify* and *why it matters*, for example:
+
+- **Intent** — What behavior or API shape changed here vs main?
+- **Contract** — Which field, RPC, error code, or envelope changed? Backward compatible?
+- **Failure mode** — What breaks if this file is wrong (wrong status code, silent data loss, security hole)?
+- **Red flag** — What would look “off” in the diff (new coupling, duplicate logic, missing validation)?
+
+If the diff is **multi-file or cross-layer** (proto + generated + handlers + tests + docs), prefer a **per-file (or per-group) subsection** instead of only top-level categories. Same information can be structured like:
+
+```text
+- path/to/foo.proto — RPC list and message fields match the product decision; enums cover NOT_FOUND (or explicit unknown).
+- path/to/generated/… — Regenerated only; diff should mirror proto; no hand edits.
+- path/to/grpc/foo.handler.ts — Thin adapter: validation, requestContext, mapping to service; errors mapped to proto enums.
+```
+
+Short bullets are fine; **vague** bullets (“check handler”) are not.
+
+**Reviewer checklist categories (general)**
+
+Use these as **axes**, then **instantiate** them with file-specific bullets above:
 
 - **User-visible behavior** — UX copy, feature flags, defaults, error messages.
 - **Contracts** — HTTP/gRPC/event payloads, schemas, versioning, backward compatibility.
@@ -144,11 +177,22 @@ Make review fast: **where to look**, **what changed in intent**, **what could br
 - **Operational risk** — Deploy order, migrations, caches, async ordering (commit vs publish), idempotency, retries.
 - **Tests** — What this change proves; what remains intentionally untested.
 
+**Cross-cutting review prompts (use when relevant)**
+
+- **Removing or narrowing a public surface** (RPC route, REST path, proto RPC, exported client): state **blast radius** (who consumed it), whether **callers outside this repo** must change, and whether the commit should carry **`BREAKING CHANGE`** (see **`commit`** skill).
+- **Docs and manifests:** After changing scripts, entrypoints, env vars, or public APIs, cross-check **README**, **package scripts**, and **CI** so documented commands and tables match reality (no phantom scripts or stale “methods implemented today” lists).
+- **Integration tests vs production ingress:** If tests **seed data via one path** (e.g. service or queue) but **assert another** (e.g. gRPC), say so explicitly so reviewers do not confuse **test setup** with **supported caller paths**.
+- **Hooks vs changed paths:** If pre-commit or CI runs **lint/format only on part of the repo** (e.g. `src/` but not `tests/`), note it when your edits touch paths that hooks do not cover.
+
 Optional bullets:
 
 - **Compare with** — “Same pattern as `path/to/...`” when it speeds review.
 - **Non-goals** — One line so reviewers do not flag intentional omissions.
 - **Blast radius** — Public API, published packages, docs, or scripts outside this repo (when deletion or export paths change).
+
+**Sliced migrations (optional pattern)**
+
+For transport or API moves (e.g. Rabbit → gRPC), a coherent sequence often reduces risk: **centralize behavior in domain/service** → **extend contract + codegen** → **add adapters/handlers** → **integration tests** → **remove deprecated surface**. When using slices, say **which slice** you are in and **what must stay working** until the next slice lands.
 
 ### 7) Pause for confirmation (conditional)
 
@@ -156,6 +200,11 @@ Ask for a short token (e.g. `continue`) **only when**:
 
 - Using **sliced mode** and more work remains, or
 - The user explicitly asked for **pause between steps**.
+
+In **sliced mode**, treat the pause as **part of the delivery**, not optional polish:
+
+- After each unit: give the **review handoff** for *just that unit’s diff*, list **remaining units**, and ask for `continue` before editing further.
+- If the user wants to compress slices, they must explicitly say so (e.g. “merge U2+U3”, “single-pass from here”).
 
 Do **not** require a pause after every single-pass task.
 
@@ -173,4 +222,5 @@ If verification fails:
 ## Integration with other skills
 
 - **`commit`** — When the user asks for a commit message or `/commit`, follow that skill’s format and conventions.
+- **`bmo-sync-repo-documentation`** (or repo doc-sync equivalent) — After changing scripts, public APIs, or paths listed in onboarding docs, reconcile **README / manifests / CI** so the review handoff does not repeat stale commands (often paired with the **Docs and manifests** bullet above).
 - **Planning** — If the task is large or ambiguous, propose planning mode before heavy implementation (whether sliced or not).

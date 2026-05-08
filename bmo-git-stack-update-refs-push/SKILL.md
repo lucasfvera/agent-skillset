@@ -6,6 +6,8 @@ description: >-
   rewritten tips with `git push --force-with-lease` (optionally `--atomic`).
   Use after restacking local branches, when the user mentions update-refs,
   stacked branches out of sync after rebase, or pushing a rebased PR stack.
+  Do not auto-push unrelated local branches or first-time remotes unless the
+  user includes them in the stack being published.
 disable-model-invocation: true
 ---
 
@@ -28,6 +30,19 @@ disable-model-invocation: true
 1. `git fetch origin` (or the relevant remote) so `origin/*` is current.
 2. Know which **remote** to use (`origin` unless the user says otherwise).
 3. Confirm **shared branches**: force-pushing rewrites remote history; coordinate if others use the same branches.
+4. **Name the stack** (explicit list or “all locals that diverged from their existing `origin/*` in this workstream”). Do not treat “every branch in the repo” or “the current branch” as the stack by default.
+
+## Scope: what to push (and what not to)
+
+This skill publishes **only** branches that are part of the **rewritten stack** the user is shipping—refs that already have `origin/<name>` and diverged after `rebase --update-refs` (or equivalent history rewrite).
+
+**Do not** automatically:
+
+- **`git push`** or **`-u`** the **currently checked-out branch** just because it exists or lacks upstream—often it is unrelated WIP (e.g. a scratch branch).
+- **Create/publish** a remote for locals with **no `origin/<name>`** unless the user said that branch belongs in this stack or asked to publish it. Listing “locals missing upstream” is for diagnosis; **default is leave them local**.
+- **Expand** the push list beyond the agreed stack to “helpfully” include extra branches.
+
+If unsure whether a branch belongs to the stack, **ask** or **omit** it from the push.
 
 ## 1. Rebase with update-refs (reminder)
 
@@ -66,7 +81,7 @@ git for-each-ref refs/heads --format='%(refname:short)|%(upstream:short)' | awk 
 
 **Skip or handle specially:**
 
-- **`origin/<branch>` missing** — remote branch deleted or never pushed: either `git push -u origin <branch>` (create remote) or delete/rename local branch; do not invent an upstream.
+- **`origin/<branch>` missing** — that local is **not** part of a published stack until the user says otherwise. Do **not** `git push -u` it as a follow-up to this skill. Options: user explicitly includes it in the push list, user creates the remote later, or they delete/rename the local branch. Do not invent an upstream; do not publish by default.
 - **Rename mismatch** — local name ≠ remote name: use explicit upstream `origin/<actual-remote-name>` or rename local branch to match team convention.
 
 ## 3. Sanity check before push
@@ -101,7 +116,7 @@ git push --force-with-lease origin <b1> <b2> <b3>
 git push --force-with-lease --atomic origin <b1> <b2> <b3>
 ```
 
-**First-time remote branch** (no `origin/<branch>` yet):
+**First-time remote branch** (no `origin/<branch>` yet)—**only** when that branch is **explicitly** part of the stack being published:
 
 ```bash
 git push -u --force-with-lease origin <branch>
@@ -116,7 +131,8 @@ Remote moved (new commits) since your fetch. **Fetch**, reconcile (rebase again 
 ## Checklist (agent or human)
 
 - [ ] `git fetch <remote>`
-- [ ] List stack branches that were rewritten
+- [ ] List **only** stack branches that were rewritten (agreed scope—not “all locals” or “current branch” unless those are the stack)
 - [ ] For each: `origin/<name>` exists → `git branch -u origin/<name> <name>`
 - [ ] For each: push with `git push --force-with-lease` (and `--atomic` if multi-branch and desired)
+- [ ] **Did not** push or `-u` unrelated locals, WIP checkouts, or branches missing `origin/<name>` unless the user included them
 - [ ] Warn if branches are shared or CI depends on exact SHAs on remote
