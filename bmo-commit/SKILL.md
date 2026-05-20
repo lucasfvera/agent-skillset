@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Writes conventional commit messages from staged diffs and creates the commit. Detects workspace scope from paths in Yarn/Nx/Turborepo-style monorepos (apps/*, packages/*). Use when the user says commit, commit this, save changes with a message, or attaches this skill for a conventional commit.
+description: Writes conventional commit messages from staged diffs and creates the commit. Detects workspace scope from paths in Yarn/Nx/Turborepo-style monorepos (apps/*, packages/*). Use when the user says commit, commit this, save changes with a message, or attaches this skill for a conventional commit. Do not infer permission to commit a second git root because a prior message committed another repo—confirm intent matches staged paths (see bmo-step-deliver).
 disable-model-invocation: true
 ---
 
@@ -8,11 +8,12 @@ disable-model-invocation: true
 
 ## Workflow
 
-1. If nothing is staged (`git diff --cached --stat` empty), stop and tell the user to stage files first.
-2. Inspect staged changes: `git diff --cached`, names, and rough intent (feat/fix/test/chore/etc.).
-3. **Infer `<type>`** from branch name when it matches `feat/`, `fix/`, `chore/`, etc.; otherwise choose from the list below from the actual diff.
-4. **Infer `<scope>`** using [Monorepo scope](#monorepo-scope) rules when paths clearly belong to one workspace; omit scope when unclear or overly broad.
-5. Compose the message per [Format](#format), then run `git commit` with that message.
+1. **Confirm intent:** Only run when the user asked to **create a commit** (or used `/bmo-commit` / `continue` per **bmo-step-deliver** for the **same** repo’s completed slice). If they asked to commit **only** a named part of the monorepo or a **different** git root, ensure staged files match that scope—**do not** stage or commit other repos by inference. See **bmo-step-deliver** (Git commits: explicit approval per repository).
+2. If nothing is staged (`git diff --cached --stat` empty), stop and tell the user to stage files first.
+3. Inspect staged changes: `git diff --cached`, names, and rough intent (feat/fix/test/chore/etc.).
+4. **Infer `<type>`** from branch name when it matches `feat/`, `fix/`, `chore/`, etc.; otherwise choose from the list below from the actual diff.
+5. **Infer `<scope>`** using [Monorepo scope](#monorepo-scope) rules when paths clearly belong to one workspace; omit scope when unclear or overly broad.
+6. Compose the message per [Format](#format), then run `git commit` with that message.
 
 ## Monorepo scope
 
