@@ -300,7 +300,7 @@ This flow commits **only** the slice the user acknowledged, in **the same git re
 
 If the user sends **`continue`** (or clear equivalent: “next slice”, “proceed”) **and** there is a **next slice** still to do **or** you are confirming the slice is done before closing:
 
-1. **Commit the completed slice first** (in **that** repository only) using the **`/bmo-commit`** skill ([`bmo-commit`](../bmo-commit/SKILL.md)): ensure the slice’s files are **staged** (`git add …`), then follow that skill in order—if `git diff --cached` is empty, **stop** and tell the user to stage; otherwise inspect `git diff --cached`, infer type and scope, compose the message, run `git commit`. If there is nothing left to commit (already committed), skip to step 2.
+1. **Commit the completed slice first** (in **that** repository only) using the **`/bmo-commit`** skill ([`bmo-commit`](../bmo-commit/SKILL.md)): stage **only** that slice’s paths (`git add …`—no file edits, no normalize/lint-fix); then follow that skill—if `git diff --cached` is empty, **stop** and tell the user to stage; otherwise inspect `git diff --cached`, infer type and scope, compose the message, run `git commit`. If there is nothing left to commit (already committed), skip to step 2.
 2. If there is **another slice** in the plan, **then** start implementation for that next slice (return to step **Align scope** for that unit only, or a short delta if scope unchanged).
 
 If there is **no next slice** and nothing left to implement, **`continue`** after the final **review digest** may mean “commit if needed, then done”—still run **`/bmo-commit`** when there are uncommitted slice changes **in the repo the user means**.
@@ -320,6 +320,6 @@ If verification fails:
 
 ## Integration with other skills
 
-- **`/bmo-commit`** / **`bmo-commit`** — When the user asks for a commit, says **`continue`** under [Continue: commit slice, then next unit](#continue-commit-slice-then-next-unit), or `/commit`, follow that skill’s format and conventions (staged diff empty → stop; else inspect `git diff --cached`, conventional type/scope, then `git commit`).
+- **`/bmo-commit`** / **`bmo-commit`** — When the user asks for a commit, says **`continue`** under [Continue: commit slice, then next unit](#continue-commit-slice-then-next-unit), or `/commit`, follow that skill: **no edits or auto-fix to files**; stage only when the user asked or when this skill’s continue flow requires staging the slice; staged diff empty → stop; else inspect `git diff --cached`, conventional type/scope, then `git commit`.
 - **`bmo-sync-repo-documentation`** (or repo doc-sync equivalent) — After changing scripts, public APIs, or paths listed in onboarding docs, reconcile **README / manifests / CI** so the review handoff does not repeat stale commands (often paired with the **Docs and manifests** bullet above).
 - **Planning** — If the task is large or ambiguous, propose planning mode before heavy implementation (whether sliced or not).
