@@ -1,5 +1,5 @@
 ---
-name: step-deliver
+name: bmo-step-deliver
 description: Use when the user wants agent work delivered with clear scope, verification, runnable commands, and a structured human review digest (mandatory template: review blocks with absolute paths, block-level + per-file prompts, provenance/conventions). When the task is plan-shaped with multiple units (U1/U2/…, explicit numbered steps, or agreed slices), mandatory stop after each unit—full **review digest** (§6), then wait for the user to say continue (or equivalent) before implementing the next slice; do not batch slices in one turn unless the user explicitly opts into single-pass up front. Git commits require explicit approval per repository (or post–review-digest `continue` for that same repo’s slice); never commit repo B because the user asked to commit repo A then “continue” with work in B. Skipped scope-shaping questions block until re-ask or explicit defaults token; on continue, `/bmo-commit` the finished slice when applicable, then start the next unit only.
 ---
 
