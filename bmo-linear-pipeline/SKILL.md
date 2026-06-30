@@ -1,6 +1,6 @@
 ---
 name: bmo-linear-pipeline
-description: Autonomous Linear-issue pipeline for low-complexity work only — triage (bmo-triage), plan (bmo-step-planner in plan mode), deliver each U* unit (bmo-step-deliver), parallel block review subagents (bmo-block-reviewer), fix findings, commit (bmo-commit), repeat until the plan is done. Use when the user invokes /bmo-linear-pipeline or passes a Linear issue URL for hands-off pickup of small issues.
+description: Autonomous Linear-issue pipeline for low-complexity work only — triage, plan, isolated worktrees per affected repo (same branch), deliver each U* unit, parallel block review, fix, commit, repeat until done. Use when the user invokes /bmo-linear-pipeline or passes a Linear issue URL for hands-off pickup of small issues.
 disable-model-invocation: true
 argument-hint: "[linear issue url]"
 ---
@@ -18,7 +18,11 @@ When invoking child skills, **read their `SKILL.md` first** from `~/.cursor/skil
 At start, note:
 
 - **Issue link / id:** from `$ARGUMENTS`
+- **Branch name:** `feature/[issue-id]-[slug]` (filled in Phase 2.5)
+- **WORKTREE_ID:** shared id for this run (filled in Phase 2.5)
+- **Worktrees:** `REPO_ROOT → WORKTREE_PATH` per affected repo (filled in Phase 2.5)
 - **Plan file path:** (filled in Phase 2)
+- **Repos (n):** from triage / plan (filled in Phase 1–2)
 - **Current unit:** (filled in Phase 3 loop)
 - **Pipeline status:** `running` | `exited-early` | `done`
 
@@ -35,22 +39,35 @@ At start, note:
 
 | Condition | Action |
 |-----------|--------|
-| Triage **early exit** (`Skip — unreachable` or `Skip — already done`) | Stop. Output early-exit summary only. **No planning, no code.** |
-| **Complexity** is **Medium** or **High** | Stop. Output triage summary + one line: **"Complexity is not Low — pipeline stopped."** **No planning, no code.** |
+| Triage **early exit** (`Skip — unreachable` or `Skip — already done`) | Stop. Output [Early exit output](#early-exit-output). **No planning, no code.** |
+| **Complexity** is **Medium** or **High** | Stop. Output [Early exit output](#early-exit-output) with verdict **Stop — complexity not Low**. **No planning, no code.** |
 | Complexity row missing or ambiguous | Stop. Ask user to confirm complexity manually; do not proceed until **Low** is confirmed. |
 
 **Proceed only when** the triage **Scores** table shows **Complexity | Low** (case-insensitive).
 
-Record the triage summary in chat (short); keep going to Phase 2.
+### Triage verdict (mandatory before Phase 2)
+
+When Gate 1 passes, output this block **in chat** before planning:
+
+```markdown
+## Triage verdict: [IDENTIFIER]
+
+**Verdict:** Proceed · **Complexity:** Low · **Type:** [Bug / Feature / Chore]
+**Repos (n):** [repo-a] (1) — or list all with count
+
+[1–2 sentences: what the issue is and likely root cause / gap, if known from triage]
+```
+
+Record repos count in run context. Then continue to Phase 2.
 
 ---
 
-## Phase 2 — Plan (`bmo-step-planner`, plan mode)
+## Phase 2 — Plan (`bmo-step-planner`)
 
-1. **Switch to plan mode** using the host `SwitchMode` tool (`target_mode_id: plan`) so planning stays read-only. If switch is unavailable, state that and still follow `bmo-step-planner` rules (planning only, no implementation).
-2. Read and follow [`bmo-step-planner`](../bmo-step-planner/SKILL.md) using triage context (issue title, AC, repos, gaps).
-3. Write the plan file per that skill (`U1`, `U2`, … mandatory when 2+ units).
-4. **Switch back to agent mode** (`SwitchMode` → `agent`) before any implementation.
+Planning only, no implementation — **do not** call `SwitchMode` or block on mode changes.
+
+1. Read and follow [`bmo-step-planner`](../bmo-step-planner/SKILL.md) using triage context (issue title, AC, repos, gaps).
+2. Write the plan file per that skill (`U1`, `U2`, … mandatory when 2+ units).
 
 ### Gate 2 — Plan must exist
 
@@ -59,6 +76,52 @@ Record the triage summary in chat (short); keep going to Phase 2.
 - Parse the list of implementation units (`U1`, `U2`, …) in order from the plan.
 
 If the plan has **Open questions (blocked)** with no `defaults: yes` from the user, **stop** and list blockers — do not implement.
+
+---
+
+## Phase 2.5 — Worktrees (mandatory before deliver)
+
+All implementation happens in **isolated worktrees** — never edit the user's main checkout for an affected repo.
+
+**Affected repos** = union of git roots named in the plan (all units). One worktree per repo, **same branch name** in each.
+
+### Branch name
+
+`feature/[issue-id-lowercase]-[slug-from-title]` — e.g. `feature/dev-3311-pending-deposit-repeated-3-times`.
+
+If the user passed `/worktree branch=…` or an existing feature branch is linked to the issue, use that name instead.
+
+### Setup
+
+1. Pick one **WORKTREE_ID** for the run: `[issue-id]-$(openssl rand -hex 4)` (e.g. `dev3311-a1b2c3d4`).
+2. For **each** affected `REPO_ROOT`, create a worktree under `~/.cursor/worktrees/$WORKTREE_ID/`:
+   - Prefer Cursor **`/worktree`** when available (same `WORKTREE_ID` + branch for every repo).
+   - Else use the multi-repo create block from successful runs (detach from `main` or existing remote branch, then `git checkout -B "$BRANCH"`).
+3. Run each repo's `.cursor/worktrees.json` setup once if present.
+4. Record `REPO_ROOT → WORKTREE_PATH` in run context.
+
+### Rules
+
+- **Reads, edits, shell, verify, commit** for a repo → use that repo's **WORKTREE_PATH** only.
+- Do **not** switch branches or commit in the main workspace for affected repos.
+- Reuse an existing chat worktree mapping when the user already ran `/worktree` for this issue — do not create duplicates.
+
+**Gate:** If any required worktree is missing, stop before Phase 3.
+
+Report once:
+
+```markdown
+## Worktrees: [IDENTIFIER]
+
+**Branch:** `feature/…` · **WORKTREE_ID:** `dev3311-…`
+
+| Repo | Path |
+|------|------|
+| roxtopia | `~/.cursor/worktrees/…/roxtopia-…` |
+| roxtarsverse | `~/.cursor/worktrees/…/roxtarsverse-…` |
+```
+
+Merge back with `/apply-worktree`; cleanup with `/delete-worktree`.
 
 ---
 
@@ -71,8 +134,8 @@ For the current unit `Un`:
 ### 3a — Deliver one unit (`bmo-step-deliver`)
 
 1. Read [`bmo-step-deliver`](../bmo-step-deliver/SKILL.md).
-2. Implement **exactly `Un`** only (sliced mode, one unit).
-3. Verify per that skill (correct workspace, narrowest proof).
+2. Implement **exactly `Un`** only (sliced mode, one unit) — in each repo's **WORKTREE_PATH** from Phase 2.5.
+3. Verify per that skill (correct worktree, narrowest proof).
 4. Produce **How to run** and the mandatory **`## Review digest`** with blocks **Block A**, **Block B**, …
 
 **Do not** wait for the user to type `continue` before the review sub-phase — this pipeline supplies autopilot `continue` (see [Overrides](#overrides-to-child-skills)).
@@ -124,18 +187,52 @@ Output:
 ```markdown
 # Pipeline complete: [ISSUE-ID]
 
-**Plan:** [absolute path to plan file]
-**Units delivered:** U1 … Un (all)
-**Commits:** [short list per repo / unit if helpful]
+**Issue:** [title](link) · **Type:** [Bug / Feature / Chore]
+**Branch:** `feature/…` · **WORKTREE_ID:** `…`
+**Repos (n):** [repo → what changed, one line each]
+**Worktrees:** [repo → path]
+**Plan:** [absolute path]
+**Units delivered:** U1 … Un
+**Commits:** [hash + subject per repo]
 
-## Summary
-[2–4 sentences: what shipped, verification run, anything deferred]
+## Problem
+[Bug: what was broken and why. Non-bug: what was missing / requested.]
+
+## Fix
+[What we changed and why it resolves the problem. 2–4 bullets max.]
+
+## Verification
+[Command(s) run and result.]
 
 ## Triage (reference)
-Complexity: Low · [link]
+Proceed · Complexity: Low · Repos (n): [same as above]
 ```
 
 Set pipeline status to `done`.
+
+---
+
+## Early exit output
+
+When Gate 1 stops the pipeline, output:
+
+```markdown
+# Pipeline stopped: [IDENTIFIER]
+
+**Verdict:** [Skip — unreachable | Skip — already done | Stop — complexity not Low]
+**Link:** [url]
+
+## Findings
+[2–4 sentences: status seen, why no work, root cause if investigated, repos touched if any]
+
+## Linear comment
+[Copy-paste block for the issue — concise, professional, no agent jargon]
+
+---
+_Complexity / ROI from triage if applicable._
+```
+
+Set pipeline status to `exited-early`.
 
 ---
 
@@ -159,6 +256,7 @@ Multi-repo plans: commit **per git root** per unit; never commit repo B because 
 
 | Situation | Action |
 |-----------|--------|
+| Worktree setup fails for a required repo | Stop before Phase 3; report which repo failed |
 | Verification fails after deliver or fixes | Fix within unit if small; otherwise stop with smallest next action |
 | Subagent unavailable / Task tool missing | Review blocks **sequentially** in the orchestrator using `bmo-block-reviewer` — do not skip review |
 | Plan revision needed mid-flight | Update plan file **Revision** section per `bmo-step-deliver`, restate scope, then continue current or next unit |

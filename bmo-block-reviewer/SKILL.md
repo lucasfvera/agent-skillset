@@ -1,6 +1,6 @@
 ---
 name: bmo-block-reviewer
-description: Reviews a delivered execution block using a specific BMO-style lens instead of a generic defensive code review. Prefer inspecting the actual diff and changed files; use the delivered block text as supporting context. Use when the user says /bmo-block-reviewer, asks to review a block from bmo-step-deliver, or wants a short findings-first review of a delivery slice.
+description: Reviews a delivered execution block using a specific BMO-style lens instead of a generic defensive code review. Prefer inspecting the actual diff and changed files; use the delivered block text as supporting context. Use when the user says /bmo-block-reviewer, asks to review a block from bmo-step-deliver, wants a short findings-first review of a delivery slice, or when a parent agent spawns one reviewer per digest block.
 disable-model-invocation: true
 ---
 
@@ -14,6 +14,23 @@ Review the delivered block the way the user reviews it: short, practical, and bi
 2. Use the delivered block text, verification notes, and review digest as supporting context.
 3. If the diff is unavailable, review the handoff text only and say that the review is limited by missing code context.
 
+## Multi-block orchestration
+
+When the user asks to review **each block** from a `bmo-step-deliver` digest:
+
+**Parent agent**
+
+1. Deliver the slice (implement → verify → review digest) before spawning reviewers.
+2. Spawn **one subagent per block** (`Block A`, `Block B`, …). Wait for all to finish.
+3. Triage each finding: **real** (fix), **style** (fix only when a clear repo/sibling pattern or prior user feedback applies), **deferred** (intentional slice boundary — do not fix).
+4. Fix only **real** issues, rerun the same narrow verification from the handoff, then summarize.
+
+**Pass each subagent:** the block text (including **What to review** and per-file **Review:** bullets), slice `Scope`, plan non-goals, changed file paths, `git diff` for those paths, one sibling file to compare against (e.g. existing deposit publisher), and what verification already passed.
+
+**Subagent rules:** review only this block’s files; treat the block’s **Review:** bullets as acceptance criteria; flag missing work deferred to a later unit under **Deferred (out of scope)** instead of as a blocker; cite the comparison file when flagging pattern drift.
+
+**Parent summary (short):** per block — real / style / deferred — then **Fixing now** vs **Not fixing** with one-line reasons.
+
 ## What to look for
 
 - Incorrect typing. Never allow `any`.
@@ -21,8 +38,11 @@ Review the delivered block the way the user reviews it: short, practical, and bi
 - Preserve comments that help the next person understand the code.
 - Do not reward over-defensive checks for unrealistic scenarios.
 - Prefer extracting reusable logic into its own file when that makes testing easier.
+- Look for helper functions that could be extracted into another file for clarity.
 - Check for duplication before accepting new code.
 - Code that changes together should stay close together.
+- Be mindful about if the introduced code adds latency to the original code.
+- Always use strict equality when comparing values.
 
 ## When reviewing tests
 
@@ -34,6 +54,13 @@ Review the delivered block the way the user reviews it: short, practical, and bi
 - Avoid comments that do not add value. Test code should mostly explain itself.
 - Do not assert on mocked component behavior that the mock itself defines. Instead, assert that the mocked component is rendered when needed, usually through a test id.
 - If a mocked child receives a transformed value from the real logic under test, asserting that transformed value is acceptable.
+- Fixture values should be as close as possible to real data: UUID v4, real enum members, plausible amounts—not `'tx-123'`, `'user-1'`.
+
+## Accumulated learnings
+
+Team-specific rules distilled from PR review live in
+[`bmo-update-block-reviewer-skill/learnings/catalog.md`](../bmo-update-block-reviewer-skill/learnings/catalog.md).
+Apply them when they strengthen or specialize the rules above.
 
 ## What not to do
 
