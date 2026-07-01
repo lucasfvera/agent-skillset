@@ -1,6 +1,6 @@
 ---
 name: bmo-linear-pipeline
-description: Autonomous Linear-issue pipeline for low-complexity work only — triage, plan, isolated worktrees per affected repo (same branch), deliver each U* unit, parallel block review, fix, commit, repeat until done. Use when the user invokes /bmo-linear-pipeline or passes a Linear issue URL for hands-off pickup of small issues.
+description: Autonomous Linear-issue pipeline for low-complexity work only — triage, plan, isolated worktrees per affected repo (same branch), deliver each U* unit, parallel block review, fix, commit, open PRs via bmo-pr, done summary. Use when the user invokes /bmo-linear-pipeline or passes a Linear issue URL for hands-off pickup of small issues.
 disable-model-invocation: true
 argument-hint: "[linear issue url]"
 ---
@@ -182,6 +182,18 @@ Do **not** commit before fixes are applied.
 
 ## Phase 4 — Done
 
+### 4a — Pull requests (`bmo-pr`)
+
+After all units are committed:
+
+1. Read [`bmo-pr`](../bmo-pr/SKILL.md).
+2. **Per affected repo** (each `WORKTREE_PATH`): push branch, create or update PR (default base `main`). Reuse Phase 4b problem/fix/verification in the body; footer `Refs [ISSUE-ID]`.
+3. Record PR URL per repo in run context.
+
+If push or `gh` fails for a repo, report it in the summary — do not fail silently.
+
+### 4b — Summary
+
 Output:
 
 ```markdown
@@ -194,6 +206,7 @@ Output:
 **Plan:** [absolute path]
 **Units delivered:** U1 … Un
 **Commits:** [hash + subject per repo]
+**PRs:** [repo → url, or "failed: …"]
 
 ## Problem
 [Bug: what was broken and why. Non-bug: what was missing / requested.]
@@ -245,6 +258,7 @@ Set pipeline status to `exited-early`.
 | `bmo-commit` | Default: commit staged only; no `git add` | **Autopilot:** orchestrator may `git add` paths for the current unit before commit |
 | `bmo-triage` | Planning only | Unchanged — still no code in Phase 1 |
 | `bmo-step-planner` | Planning only | Unchanged — still no code in Phase 2 |
+| `bmo-pr` | User invokes separately | **Autopilot:** Phase 4a push + PR per affected repo worktree |
 
 Single-unit plans: still run **3b → 3c → 3d** once, then Phase 4.
 
@@ -261,14 +275,14 @@ Multi-repo plans: commit **per git root** per unit; never commit repo B because 
 | Subagent unavailable / Task tool missing | Review blocks **sequentially** in the orchestrator using `bmo-block-reviewer` — do not skip review |
 | Plan revision needed mid-flight | Update plan file **Revision** section per `bmo-step-deliver`, restate scope, then continue current or next unit |
 | User interrupts with "stop" / "abort" | Halt pipeline; summarize done vs remaining units |
+| PR push or `gh` fails | Report in 4b summary; other repos' PRs still proceed |
 
 ---
 
 ## What this pipeline does **not** do
 
 - Pick up **Medium** or **High** complexity issues
-- Open PRs (use `/bmo-pr` separately if needed)
-- Push to remote unless the user asks later
+- Force-push to shared branches
 - Replace human review for large or ambiguous work
 
 ---
