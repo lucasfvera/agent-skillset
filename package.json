@@ -1,0 +1,11 @@
+{
+  "name": "bmo-agent-skills",
+  "version": "0.1.0",
+  "bin": {
+    "bmo-agent-skills": "./bin/install-skills.mjs"
+  },
+  "files": [
+    "bin",
+    "bmo-*"
+  ]
+}

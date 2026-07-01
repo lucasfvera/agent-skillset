@@ -1,6 +1,12 @@
 # Agent skillset
 
-Cursor skills for how we plan work, ship code, open PRs, and close review loops. Install by copying each skill folder into `~/.cursor/skills/`, or symlink the whole repo.
+Cursor skills for how we plan work, ship code, open PRs, and close review loops.
+
+```bash
+npx github:lucasfvera/agent-skillset
+```
+
+Copies every `bmo-*` skill into `~/.cursor/skills/`.
 
 ## Manual Workflow
 
