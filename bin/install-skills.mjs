@@ -15,7 +15,8 @@ const skills = fs
   .sort();
 
 if (skills.length === 0) {
-  console.error("No bmo-* skills found. Is the package installed correctly?");
+  console.error(`No bmo-* skills found in ${packageRoot}`);
+  console.error("The npm package may be missing skill folders. Try updating bmo-agent-skills.");
   process.exit(1);
 }
 
