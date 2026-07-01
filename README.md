@@ -34,7 +34,7 @@ The original flow from which I started. I ran, manually, one skill at a time unt
 
 | When to use it |
 |----------------|
-| Hands-off pickup of a low-complexity Linear issue: isolated worktrees per repo, deliver each plan unit with block review and commit in a loop. Stops on medium/high complexity or if triage says skip. Does not open PRs. |
+| Hands-off pickup of a low-complexity Linear issue: isolated worktrees per repo, deliver each plan unit with block review and commit in a loop. Stops on medium/high complexity or if triage says skip. Opens PRs with changes. |
 
 ### `/bmo-respond-pr-review`
 
