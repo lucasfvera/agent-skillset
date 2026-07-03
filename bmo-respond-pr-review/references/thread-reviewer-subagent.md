@@ -1,21 +1,22 @@
 # Thread reviewer subagent prompt
 
-Copy into the `Task` tool `prompt` field. Replace placeholders. One subagent **per thread solution** that changes code.
+Copy into the `Task` tool `prompt` field. Replace placeholders. One subagent **per review item solution** that changes code.
 
 ---
 
-You are reviewing **one PR review thread solution** before it is published on GitHub.
+You are reviewing **one PR review item solution** before it is published on GitHub.
 
 ## Your job
 
 1. Read and follow `~/.cursor/skills/bmo-block-reviewer/SKILL.md`.
-2. Inspect the **actual git diff** for this thread's changed files. Do not rely on handoff text alone.
+2. Inspect the **actual git diff** for this review item's changed files. Do not rely on handoff text alone.
 3. Return findings in the **bmo-block-reviewer output shape** (findings first, short verdict).
 
-## Thread context
+## Review item context
 
 - **PR:** {{OWNER}}/{{REPO}} #{{NUMBER}}
-- **Thread:** `{{PATH}}:{{LINE}}`
+- **Source:** {{SOURCE_KIND}} (`thread` or `overall_review`)
+- **Anchor:** {{ANCHOR}} (`path:line` for threads, `review <id>` for overall review bodies)
 - **Reviewer:** {{AUTHOR}}
 - **Review comment:** {{REVIEW_BODY}}
 - **Verdict:** {{VERDICT}} (valid / partially valid / dismissed)
@@ -31,7 +32,7 @@ You are reviewing **one PR review thread solution** before it is published on Gi
 
 ## Diff scope
 
-Review only the diff hunk(s) that address this thread:
+Review only the diff hunk(s) that address this review item:
 
 ```bash
 git diff {{DIFF_BASE}} -- {{PATHS}}

@@ -46,6 +46,38 @@ query($owner: String!, $repo: String!, $number: Int!) {
       }'
 ```
 
+## List non-empty overall review bodies
+
+```bash
+gh api repos/"$OWNER"/"$REPO"/pulls/"$NUMBER"/reviews \
+  --jq '.[]
+    | select(.state != "PENDING")
+    | select(((.body // "") | gsub("\\s"; "")) != "")
+    | {
+        reviewId: .id,
+        author: .user.login,
+        state: .state,
+        submittedAt: .submitted_at,
+        preview: .body[0:120]
+      }'
+```
+
+## Check existing BMO top-level follow-up markers
+
+```bash
+ME=$(gh api user --jq .login)
+
+gh api repos/"$OWNER"/"$REPO"/issues/"$NUMBER"/comments \
+  --jq '.[] 
+    | select(.user.login == "'"$ME"'")
+    | select(
+        (.body | contains("<!-- bmo-summary:"))
+        or
+        (.body | contains("<!-- bmo-review-followup:"))
+      )
+    | { id: .id, preview: .body[0:160] }'
+```
+
 ## Reply + react (one thread)
 
 ```bash
@@ -58,6 +90,29 @@ gh api "repos/${OWNER}/${REPO}/pulls/${NUMBER}/comments" \
 
 gh api "repos/${OWNER}/${REPO}/pulls/comments/${COMMENT_ID}/reactions" \
   -f content='+1'
+```
+
+## One top-level follow-up comment for overall review bodies and summary
+
+```bash
+REVIEW_ID=1234567890
+FIX_SHA=abc1234
+SIG=$'\n\n:robot: BMO reviewed :robot:'
+
+gh pr comment "$NUMBER" --repo "$OWNER/$REPO" --body "$(cat <<EOF
+<!-- bmo-summary:${FIX_SHA} -->
+<!-- bmo-review-followup:${REVIEW_ID} -->
+## Review follow-up
+
+### Overall review ${REVIEW_ID}
+Valid. Explain the architectural split or the action taken for this review body in one or two sentences.
+
+### Threads
+
+Shipped in \`${FIX_SHA}\`.
+${SIG}
+EOF
+)"
 ```
 
 ## Batch resolve threads

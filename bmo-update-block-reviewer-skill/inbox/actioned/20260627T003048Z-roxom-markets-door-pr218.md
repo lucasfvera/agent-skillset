@@ -1,8 +1,8 @@
 ---
 id: 20260627T003048Z-roxom-markets-door-pr218
-status: pending
+status: actioned
 capturedAt: 2026-06-27T00:30:48Z
-actionedAt: null
+actionedAt: 2026-07-01T19:18:27Z
 pr: roxom-markets/door#218
 prUrl: https://github.com/roxom-markets/door/pull/218
 fixCommitSha: e115e3c8f62074df61fd56d86d0a7fc5ea865c0b

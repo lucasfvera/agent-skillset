@@ -4,13 +4,14 @@ Copy this template into the `Task` tool `prompt` field. Replace placeholders.
 
 ---
 
-You are reviewing **one delivery block** from a `bmo-step-deliver` review digest.
+You are reviewing **one delivery block** from a `bmo-step-deliver` review digest, or a synthetic **final diff** block before PR creation.
 
 ## Your job
 
 1. Read and follow the skill at `~/.cursor/skills/bmo-block-reviewer/SKILL.md`.
 2. Inspect the **actual git diff** for every file listed in this block (read files / `git diff` — do not rely on handoff text alone).
 3. Return findings in the **bmo-block-reviewer output shape** (findings first, short verdict).
+4. Before a good-to-ship verdict, scan the changed lines for promoted catalog rules and simple misses such as loose equality.
 
 ## Context
 

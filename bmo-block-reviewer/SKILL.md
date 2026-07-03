@@ -13,6 +13,7 @@ Review the delivered block the way the user reviews it: short, practical, and bi
 1. Prefer the actual changed files and diff.
 2. Use the delivered block text, verification notes, and review digest as supporting context.
 3. If the diff is unavailable, review the handoff text only and say that the review is limited by missing code context.
+4. Before giving a ship verdict, scan the changed lines for simple rule violations that PR review keeps catching, especially promoted learnings from the catalog.
 
 ## Multi-block orchestration
 
@@ -61,6 +62,7 @@ When the user asks to review **each block** from a `bmo-step-deliver` digest:
 Team-specific rules distilled from PR review live in
 [`bmo-update-block-reviewer-skill/learnings/catalog.md`](../bmo-update-block-reviewer-skill/learnings/catalog.md).
 Apply them when they strengthen or specialize the rules above.
+Treat catalog entries marked **Promoted: yes** as a required checklist before a good-to-ship verdict.
 
 ## What not to do
 

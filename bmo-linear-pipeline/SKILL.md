@@ -182,17 +182,27 @@ Do **not** commit before fixes are applied.
 
 ## Phase 4 — Done
 
-### 4a — Pull requests (`bmo-pr`)
+### 4a — Final quality check
 
-After all units are committed:
+After all units are committed, run one more **repo-wide** review pass before any PR:
+
+1. For **each affected repo** (`WORKTREE_PATH`), spawn one readonly reviewer using the same [block reviewer subagent prompt](references/block-reviewer-subagent.md), but with a synthetic block like `Final diff — whole repo`.
+2. Pass the full branch diff for that repo (`origin/main...HEAD` or the chosen base), not a per-block slice.
+3. Fix every actionable finding, re-run the narrowest affected verification, and commit the final quality fixes before moving on.
+
+This pass exists to catch issues that slip past per-block review, especially repeated PR comments from the learnings catalog.
+
+### 4b — Pull requests (`bmo-pr`)
+
+After the final quality check is green:
 
 1. Read [`bmo-pr`](../bmo-pr/SKILL.md).
-2. **Per affected repo** (each `WORKTREE_PATH`): push branch, create or update PR (default base `main`). Reuse Phase 4b problem/fix/verification in the body; footer `Refs [ISSUE-ID]`.
+2. **Per affected repo** (each `WORKTREE_PATH`): push branch, create or update PR (default base `main`). Reuse Phase 4c problem/fix/verification in the body; footer `Refs [ISSUE-ID]`. **Label `agent-built`** on every PR (`--label agent-built` on create; `--add-label agent-built` when updating).
 3. Record PR URL per repo in run context.
 
 If push or `gh` fails for a repo, report it in the summary — do not fail silently.
 
-### 4b — Summary
+### 4c — Summary
 
 Output:
 
@@ -258,7 +268,7 @@ Set pipeline status to `exited-early`.
 | `bmo-commit` | Default: commit staged only; no `git add` | **Autopilot:** orchestrator may `git add` paths for the current unit before commit |
 | `bmo-triage` | Planning only | Unchanged — still no code in Phase 1 |
 | `bmo-step-planner` | Planning only | Unchanged — still no code in Phase 2 |
-| `bmo-pr` | User invokes separately | **Autopilot:** Phase 4a push + PR per affected repo worktree |
+| `bmo-pr` | User invokes separately | **Autopilot:** Phase 4b push + PR per affected repo worktree |
 
 Single-unit plans: still run **3b → 3c → 3d** once, then Phase 4.
 
@@ -275,6 +285,7 @@ Multi-repo plans: commit **per git root** per unit; never commit repo B because 
 | Subagent unavailable / Task tool missing | Review blocks **sequentially** in the orchestrator using `bmo-block-reviewer` — do not skip review |
 | Plan revision needed mid-flight | Update plan file **Revision** section per `bmo-step-deliver`, restate scope, then continue current or next unit |
 | User interrupts with "stop" / "abort" | Halt pipeline; summarize done vs remaining units |
+| Final quality check finds issues | Fix, verify, and commit before Phase 4b PR creation |
 | PR push or `gh` fails | Report in 4b summary; other repos' PRs still proceed |
 
 ---
