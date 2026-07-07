@@ -1,5 +1,5 @@
 ---
-name: stack-prs
+name: bmo-stack-prs
 description: Infers stacked PRs from git history using only the stack tip (defaults to current branch) and repo default branch, discovers ordered branches on ROOT..TIP without the user listing push targets, reconciles with open GitHub PRs to push any out-of-sync stack heads and create only missing PRs. Confirms with the user on ancestry failure, non-linear history, base mismatch, or divergence—otherwise proceeds. Use for stacked PRs, incremental stack updates, or layered merges that respect ancestry.
 disable-model-invocation: true
 ---

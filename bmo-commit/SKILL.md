@@ -1,5 +1,5 @@
 ---
-name: commit
+name: bmo-commit
 description: Creates a conventional commit from the index only—default is staged changes only; aborts with no commit if nothing is staged. Never auto-stages unstaged work, edits files, or runs formatters. Stages paths only when the user explicitly asks to stage. Detects workspace scope from paths in Yarn/Nx/Turborepo-style monorepos (apps/*, packages/*). Use when the user says commit, commit this, /bmo-commit, save changes with a message, or attaches this skill. Do not infer permission to commit a second git root because a prior message committed another repo—confirm intent matches staged paths (see bmo-step-deliver).
 disable-model-invocation: true
 ---

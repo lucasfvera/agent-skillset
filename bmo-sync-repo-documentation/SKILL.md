@@ -1,5 +1,5 @@
 ---
-name: sync-repo-documentation
+name: bmo-sync-repo-documentation
 description: >-
   Brings repository documentation back in sync with the codebase after features,
   refactors, or tooling changes. Works for standalone repos and monorepos: discovers

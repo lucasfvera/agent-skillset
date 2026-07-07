@@ -1,5 +1,5 @@
 ---
-name: pr
+name: bmo-pr
 description: Opens or updates GitHub pull requests with conventional titles and a full PR body (repo template or default sections). Use when the user says /pr, asks to open a PR, update PR description after new commits, or target a base branch (e.g. main) with gh.
 disable-model-invocation: true
 ---
