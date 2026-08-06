@@ -1,8 +1,8 @@
 ---
 id: 20260721T161539Z-roxom-markets-roxtarsverse-pr775
-status: pending
+status: actioned
 capturedAt: 2026-07-21T16:15:39Z
-actionedAt: null
+actionedAt: 2026-08-06T18:40:26Z
 pr: roxom-markets/roxtarsverse#775
 prUrl: https://github.com/roxom-markets/roxtarsverse/pull/775
 fixCommitSha: a6e64019849abe61ea94be9c270e91a3605e2921

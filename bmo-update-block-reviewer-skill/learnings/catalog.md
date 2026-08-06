@@ -17,7 +17,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Category** | typing |
 | **Guideline** | Always use strict equality when comparing values; never use loose equality. |
 | **Rationale** | Loose equality hides type coercion bugs and obscures intent when distinguishing null from undefined. |
-| **Sources** | roxom-markets/roxtopia#833, roxom-markets/roxtopia#841, roxom-markets/roxtopia#843 |
+| **Sources** | roxom-markets/roxtopia#833, roxom-markets/roxtopia#841, roxom-markets/roxtopia#843, roxom-markets/roxtopia#859 |
 | **Promoted** | yes (already in block-reviewer) |
 
 ### schema-narrow-types
@@ -37,7 +37,17 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Category** | typing |
 | **Guideline** | Type test fixtures with the actual contract types from the producing service rather than loose object shapes. |
 | **Rationale** | Contract-typed fixtures catch shape drift at compile time and document the expected integration boundary. |
-| **Sources** | roxom-markets/door#218 |
+| **Sources** | roxom-markets/door#218, roxom-markets/roxtarsverse#751 |
+| **Promoted** | yes |
+
+### test-typed-stubs
+
+| Field | Value |
+|-------|-------|
+| **Category** | typing |
+| **Guideline** | Prefer explicit typed no-op stubs over never or unknown shortcuts in test harnesses. |
+| **Rationale** | never and unknown hide missing dependency shapes and diverge from how other tests stub the same surface. |
+| **Sources** | roxom-markets/roxtarsverse#751 |
 | **Promoted** | no |
 
 ## Tests
@@ -72,6 +82,26 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Sources** | roxom-markets/door#218 |
 | **Promoted** | no |
 
+### test-aaa-pattern
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Structure unit tests with Arrange, Act, and Assert blocks, keeping setup variables separate from the call and expectations. |
+| **Rationale** | Separating phases makes intent obvious and keeps assertions readable. |
+| **Sources** | roxom-markets/roxtopia#859 |
+| **Promoted** | no |
+
+### reuse-shared-test-mocks
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Reuse shared suite mocks for common dependencies instead of inventing one-off mock shapes in a single spec. |
+| **Rationale** | Shared mocks keep harness behavior consistent and avoid drift from the suite baseline. |
+| **Sources** | roxom-markets/roxtarsverse#751 |
+| **Promoted** | no |
+
 ## Architecture
 
 ### no-wire-type-paths
@@ -99,10 +129,10 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | Field | Value |
 |-------|-------|
 | **Category** | architecture |
-| **Guideline** | Do not add display fallbacks for notification or UI states the upstream pipeline never emits. |
-| **Rationale** | Fallback copy for impossible states misleads readers and hides gaps between product intent and actual event contracts. |
-| **Sources** | roxom-markets/roxtopia#832 |
-| **Promoted** | no |
+| **Guideline** | Do not add display fallbacks for notification or UI states the upstream pipeline never emits, and do not invent default tickers or assets when a lookup is unresolved. |
+| **Rationale** | Fallback copy for impossible or unresolved states misleads readers and hides gaps between product intent and actual event contracts. |
+| **Sources** | roxom-markets/roxtopia#832, roxom-markets/roxtopia#958 |
+| **Promoted** | yes |
 
 ## Patterns
 
@@ -163,8 +193,8 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Category** | patterns |
 | **Guideline** | Replace hardcoded numeric defaults with existing constants from schemas or shared packages. |
 | **Rationale** | Shared constants keep defaults consistent across services and make updates single-sourced. |
-| **Sources** | roxom-markets/roxtopia#843 |
-| **Promoted** | no |
+| **Sources** | roxom-markets/roxtopia#843, roxom-markets/roxtopia#859 |
+| **Promoted** | yes |
 
 ### type-appropriate-operations
 
@@ -194,6 +224,56 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Remove redundant typeof branches when a single coercion handles all cases equivalently. |
 | **Rationale** | Extra type checks suggest false distinctions and clutter the main path. |
 | **Sources** | roxom-markets/roxtopia#843 |
+| **Promoted** | no |
+
+### extract-named-predicates
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Extract multi-condition domain checks into named helpers when inline OR or AND chains obscure intent. |
+| **Rationale** | Named predicates document the domain question being asked and keep call sites readable. |
+| **Sources** | roxom-markets/roxtopia#859 |
+| **Promoted** | no |
+
+### no-forced-shared-helpers
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Do not force a shared helper across similar paths when contracts, return shapes, or domain branches diverge enough that sharing adds indirection without gain. |
+| **Rationale** | Forced reuse can obscure differences that callers rely on and inflate the shared API for little benefit. |
+| **Sources** | roxom-markets/roxtopia#859 |
+| **Promoted** | no |
+
+### match-sibling-ui-patterns
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | When fixing UI layout or scroll behavior, match the working pattern from sibling components in the same feature before inventing a new approach. |
+| **Rationale** | Sibling patterns already encode viewport and chrome constraints that ad-hoc fixes miss. |
+| **Sources** | roxom-markets/roxtopia#956 |
+| **Promoted** | no |
+
+### extend-via-optional-props
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Prefer optional props on the shared underlying component over an extra wrapper when only layout or styling differs for one caller. |
+| **Rationale** | Extra wrappers add nesting noise and risk breaking other call sites less cleanly than an opt-in prop. |
+| **Sources** | roxom-markets/roxtopia#956 |
+| **Promoted** | no |
+
+### suppress-unresolved-display
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | When a catalog or lookup race leaves a value unresolved, return the raw value from the resolver and suppress raw ID display at call sites until resolved instead of inventing empty sentinels in the resolver. |
+| **Rationale** | Empty returns hide mixed publisher shapes, while call-site suppression handles loading without showing UUIDs as labels. |
+| **Sources** | roxom-markets/roxtopia#958 |
 | **Promoted** | no |
 
 ## Style
@@ -226,6 +306,16 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Add a brief comment on each regex explaining what it matches and which contract it enforces. |
 | **Rationale** | Regex intent is not self-documenting; a one-line note prevents misreading allowed shapes. |
 | **Sources** | roxom-markets/roxtopia#843 |
+| **Promoted** | no |
+
+### prefer-design-tokens
+
+| Field | Value |
+|-------|-------|
+| **Category** | style |
+| **Guideline** | Prefer existing design-system tokens for color, spacing, and typography over arbitrary Tailwind values; keep an arbitrary value only when no close token exists and note why. |
+| **Rationale** | Arbitrary utilities drift from the design system and make later theme changes harder. |
+| **Sources** | roxom-markets/roxtopia#874 |
 | **Promoted** | no |
 
 ## Performance

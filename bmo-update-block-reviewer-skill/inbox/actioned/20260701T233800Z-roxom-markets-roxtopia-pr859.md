@@ -1,8 +1,8 @@
 ---
 id: 20260701T233800Z-roxom-markets-roxtopia-pr859
-status: pending
+status: actioned
 capturedAt: 2026-07-01T23:38:00Z
-actionedAt: null
+actionedAt: 2026-08-06T18:40:26Z
 pr: roxom-markets/roxtopia#859
 prUrl: https://github.com/roxom-markets/roxtopia/pull/859
 fixCommitSha: 88cc6c2eb80d342d546ef849a767fe37367b6157
