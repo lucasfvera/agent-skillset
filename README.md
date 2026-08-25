@@ -34,13 +34,19 @@ The original flow from which I started. I ran, manually, one skill at a time unt
 
 ## Workflows
 
+### `/bmo-builder`
+
+| When to use it |
+|----------------|
+| You already know the work and do not want triage. Pass a feature or bug (or an existing plan file). It plans, uses isolated worktrees per repo, delivers each unit with block review and commit, then opens PRs. |
+
 ### `/bmo-linear-pipeline`
 
 <img width="3908" height="1489" alt="image" src="https://github.com/user-attachments/assets/4bb56419-1783-415d-885e-f098b487e5e9" />
 
 | When to use it |
 |----------------|
-| Hands-off pickup of a low-complexity Linear issue: isolated worktrees per repo, deliver each plan unit with block review and commit in a loop. Stops on medium/high complexity or if triage says skip. Opens PRs with changes. |
+| Hands-off pickup of a low-complexity Linear issue: triage first, then hand off to `/bmo-builder`. Stops on medium/high complexity or if triage says skip. |
 
 ### `/bmo-respond-pr-review`
 
