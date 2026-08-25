@@ -37,7 +37,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Category** | typing |
 | **Guideline** | Type test fixtures with the actual contract types from the producing service rather than loose object shapes. |
 | **Rationale** | Contract-typed fixtures catch shape drift at compile time and document the expected integration boundary. |
-| **Sources** | roxom-markets/door#218, roxom-markets/roxtarsverse#751 |
+| **Sources** | roxom-markets/door#218, roxom-markets/roxtarsverse#751, roxom-markets/window#801 |
 | **Promoted** | yes |
 
 ### test-typed-stubs
@@ -50,6 +50,26 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Sources** | roxom-markets/roxtarsverse#751 |
 | **Promoted** | no |
 
+### zod-parse-contract-payload
+
+| Field | Value |
+|-------|-------|
+| **Category** | typing |
+| **Guideline** | Do not manually re-map successful contract payloads field-by-field; if the boundary needs validation or key stripping, parse with the existing Zod schema pattern. |
+| **Rationale** | Hand-built projections duplicate the contract and drift from how other handlers validate the same shape. |
+| **Sources** | roxom-markets/window#800 |
+| **Promoted** | no |
+
+### no-locator-type-assertions
+
+| Field | Value |
+|-------|-------|
+| **Category** | typing |
+| **Guideline** | Do not cast queried elements when the locator and matcher already provide the type. |
+| **Rationale** | Extra assertions hide whether the query already returned the right element and fight the testing library's types. |
+| **Sources** | roxom-markets/roxtopia#1074 |
+| **Promoted** | yes (already in block-reviewer) |
+
 ## Tests
 
 ### test-realistic-fixtures
@@ -59,7 +79,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Category** | tests |
 | **Guideline** | Use realistic fixture values — UUID v4 for ID fields, real enum members, plausible amounts — not placeholder strings like tx-123 or user-1. |
 | **Rationale** | Realistic fixtures mirror production data shapes and catch type or format assumptions early. |
-| **Sources** | roxom-markets/roxtopia#833, roxom-markets/roxtopia#832 |
+| **Sources** | roxom-markets/roxtopia#833, roxom-markets/roxtopia#832, roxom-markets/window#801 |
 | **Promoted** | yes (already in block-reviewer) |
 
 ### test-canonical-urls
@@ -99,8 +119,78 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Category** | tests |
 | **Guideline** | Reuse shared suite mocks for common dependencies instead of inventing one-off mock shapes in a single spec. |
 | **Rationale** | Shared mocks keep harness behavior consistent and avoid drift from the suite baseline. |
-| **Sources** | roxom-markets/roxtarsverse#751 |
+| **Sources** | roxom-markets/roxtarsverse#751, roxom-markets/window#801 |
 | **Promoted** | no |
+
+### test-unit-owned-contract
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | When a dependency is mocked, assert the unit's own contract — methods called, arguments, HTTP projection, owned status codes — not payload fields the mock was hardcoded to return. |
+| **Rationale** | Re-asserting mocked upstream values tests the mock, not the service under test. |
+| **Sources** | roxom-markets/window#800 |
+| **Promoted** | no |
+
+### no-non-contract-negative-tests
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Do not assert negatives for product or timeline choices, route constants, or implementation details that are not a hard contract. |
+| **Rationale** | Those assertions lock in incidental decisions and add noise without protecting a real invariant. |
+| **Sources** | roxom-markets/window#801, roxom-markets/roxtarsverse#824 |
+| **Promoted** | yes |
+
+### test-unauthenticated-when-middleware-allows
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Keep unauthenticated-path tests when route middleware does not actually reject missing sessions; do not assume every account endpoint is auth-gated the same way. |
+| **Rationale** | Sibling handlers differ in middleware, so a missing user can be a real request shape rather than an impossible state. |
+| **Sources** | roxom-markets/window#800 |
+| **Promoted** | no |
+
+### integration-tests-match-production
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Write integration tests against the shared suite factory and generated client the way production consumes the API; do not boot a parallel harness, call handlers directly, or wrap the client in test-only helpers or extra Promises. |
+| **Rationale** | One-off harnesses and handler wrappers drift from real consumption and hide setup the rest of the suite already owns. |
+| **Sources** | roxom-markets/roxtarsverse#823, roxom-markets/roxtarsverse#824, roxom-markets/roxtarsverse#825 |
+| **Promoted** | yes |
+
+### no-overlapping-method-tests
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Do not re-test behavior owned by another method or already covered in a related change; keep the spec scoped to the code under review. |
+| **Rationale** | Overlapping cases duplicate coverage, couple unrelated PRs, and make the spec harder to trust. |
+| **Sources** | roxom-markets/roxtarsverse#824, roxom-markets/roxtarsverse#825 |
+| **Promoted** | yes |
+
+### no-unproven-indirect-assertions
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Do not keep leak or security assertions that only watch indirect side channels unless injecting the leak has been shown to fail the test. |
+| **Rationale** | Indirect spies can pass while the behavior they claim to protect is never actually exercised. |
+| **Sources** | roxom-markets/roxtarsverse#824 |
+| **Promoted** | no |
+
+### test-user-event
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Use user-event for interactions that matter; avoid fireEvent unless there is a clear reason it cannot drive the case. |
+| **Rationale** | fireEvent skips the user path and misses the same timing and event sequence production sees. |
+| **Sources** | roxom-markets/roxtopia#1074 |
+| **Promoted** | yes (already in block-reviewer) |
 
 ## Architecture
 
@@ -133,6 +223,16 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Rationale** | Fallback copy for impossible or unresolved states misleads readers and hides gaps between product intent and actual event contracts. |
 | **Sources** | roxom-markets/roxtopia#832, roxom-markets/roxtopia#958 |
 | **Promoted** | yes |
+
+### keep-proto-success-envelopes
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Keep existing proto success-envelope shapes — success plus optional data plus optional error — instead of flattening a single field onto the response. |
+| **Rationale** | Flattening a one-field payload breaks the envelope siblings already use and forces callers onto a one-off contract. |
+| **Sources** | roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
 
 ## Patterns
 
@@ -276,6 +376,56 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Sources** | roxom-markets/roxtopia#958 |
 | **Promoted** | no |
 
+### match-sibling-route-registration
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Register routes, middleware, and handlers using the same shape as siblings in the file; only add extra middleware or wrappers when this endpoint actually needs them. |
+| **Rationale** | Handler-exported path constants and one-off wrappers invent a second registration style the rest of the router does not use. |
+| **Sources** | roxom-markets/window#801 |
+| **Promoted** | no |
+
+### match-generated-client-calls
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Do not attach tracing or extra metadata to generated client calls that sibling handlers do not pass; match the generated client's actual signature. |
+| **Rationale** | Invented metadata implies a tracing contract the generated client does not support. |
+| **Sources** | roxom-markets/window#800 |
+| **Promoted** | no |
+
+### no-custom-uuid-guards
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Do not add custom UUID regex or extra type-safety helpers when the database column or existing shared mappers already constrain the type. |
+| **Rationale** | Reinvented UUID checks duplicate constraints the store already enforces and add processing on every row. |
+| **Sources** | roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
+
+### validate-from-handlers-not-effects
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Prefer triggering validation from event handlers rather than effects; keep an effect only when a derived value updates without firing those handlers. |
+| **Rationale** | Handler-driven validation matches the user event; an effect is justified when a quote or other derived amount never fires onChange. |
+| **Sources** | roxom-markets/roxtopia#1074 |
+| **Promoted** | no |
+
+### single-use-vendor-error-codes
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | When detecting a vendor SQLSTATE the library does not export, hardcode it at the single use site with a comment to the vendor docs; do not invent a shared constant unless a sibling already names that same code. |
+| **Rationale** | A one-off named constant for a code used once implies a shared catalog that does not exist; the comment is what makes the magic string reviewable. |
+| **Sources** | roxom-markets/roxtarsverse#824 |
+| **Promoted** | no |
+
 ## Style
 
 ### precise-docstrings
@@ -320,7 +470,15 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 
 ## Performance
 
-_(none yet)_
+### sql-alias-instead-of-row-map
+
+| Field | Value |
+|-------|-------|
+| **Category** | performance |
+| **Guideline** | Alias SQL columns to application field names in the query instead of transforming rows in application code after fetch. |
+| **Rationale** | Post-fetch mappers add a pass over every row that the query can avoid with column aliases. |
+| **Sources** | roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
 
 ## Other
 

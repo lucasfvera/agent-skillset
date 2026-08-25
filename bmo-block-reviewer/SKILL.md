@@ -56,6 +56,9 @@ When the user asks to review **each block** from a `bmo-step-deliver` digest:
 - Do not assert on mocked component behavior that the mock itself defines. Instead, assert that the mocked component is rendered when needed, usually through a test id.
 - If a mocked child receives a transformed value from the real logic under test, asserting that transformed value is acceptable.
 - Fixture values should be as close as possible to real data: UUID v4, real enum members, plausible amounts—not `'tx-123'`, `'user-1'`.
+- Integration tests should use the shared suite factory and call the generated client the way production does; do not invoke handlers directly or wrap them in test-only helpers.
+- Do not assert negatives for product or timeline choices, route constants, or other details that are not a hard contract.
+- Do not re-test behavior owned by another method or already covered in a related change; keep the spec scoped to the code under review.
 
 ## Accumulated learnings
 
