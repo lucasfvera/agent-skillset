@@ -5,7 +5,7 @@ disable-model-invocation: true
 argument-hint: "[feature or bug]"
 ---
 
-CRITICAL: Execute every phase below **in order**. Do not implement code before a written plan exists. Do not skip block review or commit between units.
+CRITICAL: Execute every phase below **in order**. Do not implement code before a written plan exists **and** Phase 2 isolation is proven. Do not skip block review or commit between units.
 
 Start at planning. Do not run `bmo-triage` or stop because the work looks medium or high.
 
@@ -62,7 +62,7 @@ If the plan has **Open questions (blocked)** with no `defaults: yes` from the us
 
 ## Phase 2 — Worktrees (mandatory before deliver)
 
-All implementation happens in **isolated worktrees**. Never edit the user's main checkout for an affected repo.
+All implementation happens in **isolated worktrees**. Phase 3 does not start on a recorded path that is the user's main checkout.
 
 **Affected repos** = union of git roots named in the plan (all units). One worktree per repo, **same branch name** in each.
 
@@ -71,26 +71,32 @@ All implementation happens in **isolated worktrees**. Never edit the user's main
 - Issue key identifier: `feature/[id-lowercase]-[slug-from-title]`, e.g. `feature/dev-3311-pending-deposit-repeated-3-times`.
 - Slug-only identifier: `feature/[slug]`.
 
-If the user passed `/worktree branch=…` or this chat already has a feature branch for this identifier, use that name instead.
+If the user passed `/worktree branch=…` or this chat already has a worktree for this identifier, reuse that **WORKTREE_PATH** (still run Proof and move the agent). A feature branch checked out in `REPO_ROOT` is not a worktree. Use the same branch name, in a worktree.
 
 ### Setup
 
 1. Pick one **WORKTREE_ID** for the run: `[compact-id]-$(openssl rand -hex 4)` where compact-id is the identifier with hyphens stripped (e.g. `dev3311-a1b2c3d4`).
-2. For **each** affected `REPO_ROOT`, create a worktree under `~/.cursor/worktrees/$WORKTREE_ID/`:
-   - Prefer Cursor **`/worktree`** when available (same `WORKTREE_ID` + branch for every repo).
-   - Else detach from `main` or the existing remote branch, then `git checkout -B "$BRANCH"`.
+2. For **each** affected `REPO_ROOT`, add a worktree under `~/.cursor/worktrees/$WORKTREE_ID/` (prefer Cursor **`/worktree`** with the same `WORKTREE_ID` + branch for every repo). If creating by hand: `git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" -b "$BRANCH"` from `main` or the existing remote branch. Do not `git checkout` that branch in `REPO_ROOT`.
 3. Run each repo's `.cursor/worktrees.json` setup once if present.
 4. Record `REPO_ROOT → WORKTREE_PATH`.
+5. **Move the agent** into those worktrees before any implementation edit: `move_agent_to_root` (`cursor-app-control`) with `rootPath` (one repo) or `rootPaths` (every `WORKTREE_PATH`). Do not pass any `REPO_ROOT`. If the move fails, stop. Status `stopped`.
 
-### Rules
+### Isolation (holds through Phase 4)
 
-- **Reads, edits, shell, verify, commit** for a repo → that repo's **WORKTREE_PATH** only.
-- Do **not** switch branches or commit in the main workspace for affected repos.
-- Reuse an existing chat worktree mapping for this identifier. Do not create duplicates.
+For each affected repo, every Write, StrReplace, Shell cwd, `git add` / `commit` / `push`, and verify command targets that repo's `WORKTREE_PATH`. Reviewer `GIT_ROOT` is `WORKTREE_PATH`. Child skills (`bmo-step-deliver`, `bmo-commit`, `bmo-pr`) inherit this: their git root is the worktree, not `REPO_ROOT`.
 
-**Gate:** If any required worktree is missing, stop before Phase 3. Status `stopped`.
+### Proof (gate)
 
-Report once:
+Run for **every** affected repo. Stop before Phase 3 (status `stopped`) if any check fails:
+
+```bash
+test "$(realpath "$WORKTREE_PATH")" != "$(realpath "$REPO_ROOT")"
+test -d "$WORKTREE_PATH"
+test "$(realpath "$(git -C "$WORKTREE_PATH" rev-parse --show-toplevel)")" = "$(realpath "$WORKTREE_PATH")"
+git -C "$REPO_ROOT" worktree list --porcelain | grep -F "$(realpath "$WORKTREE_PATH")"
+```
+
+Then print the table:
 
 ```markdown
 ## Worktrees: [IDENTIFIER]
@@ -105,7 +111,7 @@ Report once:
 
 Merge back with `/apply-worktree`; cleanup with `/delete-worktree`.
 
-**Done:** Every affected repo has a recorded `WORKTREE_PATH` that exists on disk; the worktrees table was printed.
+**Done:** Every Proof check passed; the agent root is the worktree(s), not any `REPO_ROOT`; the worktrees table was printed.
 
 ---
 
@@ -124,7 +130,7 @@ For the current unit `Un`:
 
 Do not wait for the user to type `continue` before the review sub-phase. This builder supplies autopilot `continue` (see [Overrides](#overrides-to-child-skills)).
 
-**Done for 3a:** `Un` is implemented only in worktree paths; verification ran; the review digest lists every changed file in some block.
+**Done for 3a:** The review digest lists every changed file in some block; every digest path is under a recorded `WORKTREE_PATH`; `git -C "$REPO_ROOT" diff --name-only` and `git -C "$REPO_ROOT" diff --cached --name-only` show no implementation files; verification ran.
 
 ### 3b — Parallel block review (one subagent per block)
 
@@ -135,7 +141,7 @@ For **each block**, spawn **one** background subagent in parallel using the host
 - **subagent_type:** `generalPurpose`
 - **readonly:** `true`
 - **run_in_background:** `true`
-- **Prompt:** use [references/block-reviewer-subagent.md](references/block-reviewer-subagent.md). Pass block name, block text, file paths, git root, and work id.
+- **Prompt:** use [references/block-reviewer-subagent.md](references/block-reviewer-subagent.md). Pass block name, block text, file paths, work id, and `GIT_ROOT` = that repo's `WORKTREE_PATH` (never `REPO_ROOT`).
 
 Each subagent must read and follow [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md) and inspect the **actual diff** for files in that block.
 
@@ -146,21 +152,21 @@ Each subagent must read and follow [`bmo-block-reviewer`](../bmo-block-reviewer/
 ### 3c — Apply review fixes
 
 1. Merge findings from all block reviewers.
-2. **Fix** every actionable finding (typing, duplication, test style, etc.) in the orchestrator, same unit scope only.
+2. **Fix** every actionable finding (typing, duplication, test style, etc.) in the orchestrator, same unit scope, only under `WORKTREE_PATH`.
 3. Re-run the **narrowest verification** from the plan/deliver step if fixes touched behavior.
 4. If a reviewer reported **no issues**, note it and continue.
 
 Do **not** commit before fixes are applied.
 
-**Done for 3c:** Every actionable finding is fixed or explicitly deferred with a reason; verification re-ran if behavior changed.
+**Done for 3c:** Every actionable finding is fixed or explicitly deferred with a reason; fixes landed only under `WORKTREE_PATH`; verification re-ran if behavior changed.
 
 ### 3d — Commit unit (`bmo-commit`)
 
 1. Read [`bmo-commit`](../bmo-commit/SKILL.md).
-2. Stage **only** files changed for **`Un`** in the correct git root (`git add <paths>`). This builder **explicitly authorizes** staging for the completed unit.
-3. Run `/bmo-commit` workflow on the staged index. If the index is empty after staging, stop and report. Do not skip commit silently. Status `stopped`.
+2. Stage **only** files changed for **`Un`** in that repo's **WORKTREE_PATH** (`git -C "$WORKTREE_PATH" add <paths>` or Shell cwd = `WORKTREE_PATH`). This builder **explicitly authorizes** staging for the completed unit.
+3. Run `/bmo-commit` on that worktree's index. If the index is empty after staging, stop and report. Do not skip commit silently. Status `stopped`.
 
-**Done for 3d:** Each git root in scope for `Un` has a new commit (hash recorded), or this run stopped because the index was empty.
+**Done for 3d:** Each worktree in scope for `Un` has a new commit (hash from `git -C "$WORKTREE_PATH" log -1`); no commit was created in any `REPO_ROOT`. Or this run stopped because the index was empty.
 
 ### 3e — Advance
 
@@ -180,7 +186,7 @@ After all units are committed, run one more **repo-wide** review pass before any
 
 1. For **each affected repo** (`WORKTREE_PATH`), spawn one readonly reviewer using the same [block reviewer subagent prompt](references/block-reviewer-subagent.md), but with a synthetic block like `Final diff — whole repo`.
 2. Pass the full branch diff for that repo (`origin/main...HEAD` or the chosen base), not a per-block slice.
-3. Fix every actionable finding, re-run the narrowest affected verification, and commit the final quality fixes before moving on.
+3. Fix every actionable finding **in that `WORKTREE_PATH`**, re-run the narrowest affected verification, and commit the final quality fixes in that worktree before moving on.
 
 This pass exists to catch issues that slip past per-block review, especially repeated PR comments from the learnings catalog.
 

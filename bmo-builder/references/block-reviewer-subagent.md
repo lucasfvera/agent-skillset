@@ -29,7 +29,7 @@ You are reviewing **one delivery block** from a `bmo-step-deliver` review digest
 
 ## Git root
 
-{{GIT_ROOT_ABSOLUTE_PATH}}
+{{GIT_ROOT_ABSOLUTE_PATH}}  (the isolated worktree for this repo, never the user's main checkout)
 
 ## Output requirements
 

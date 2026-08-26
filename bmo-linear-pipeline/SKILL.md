@@ -5,7 +5,7 @@ disable-model-invocation: true
 argument-hint: "[linear issue url]"
 ---
 
-CRITICAL: Triage first. Do not plan or implement until Gate 1 passes. After Gate 1, execute `bmo-builder` to completion in this same turn.
+CRITICAL: Triage first. Do not plan or implement until Gate 1 passes. After Gate 1, execute `bmo-builder` to completion in this same turn. Builder completion includes proven isolated worktrees before any implementation edit.
 
 When invoking child skills, **read their `SKILL.md` first** from `~/.cursor/skills/<name>/SKILL.md` and follow them.
 
@@ -58,7 +58,7 @@ When Gate 1 passes, output this block **in chat** before handing off:
 
 ## Phase 2 — Build (`bmo-builder`)
 
-Read [`bmo-builder`](../bmo-builder/SKILL.md) from the first line and execute it to completion. Do not re-triage. Do not wait for another user message. Builder autopilot applies (plan → worktrees → per-unit deliver / block review / commit → PRs).
+Read [`bmo-builder`](../bmo-builder/SKILL.md) from the first line and execute it to completion. Do not re-triage. Do not wait for another user message. Builder autopilot applies (plan → worktrees → per-unit deliver / block review / commit → PRs). The builder is not complete if any implementation edit landed in a main checkout.
 
 Pass this handoff as the builder's input:
 
