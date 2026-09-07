@@ -26,6 +26,7 @@ At start, note:
 
 1. Read and follow [`bmo-triage`](../bmo-triage/SKILL.md) using the Linear issue from `$ARGUMENTS`.
 2. Produce the triage output (full template or early-exit template).
+3. **Chat title (recommended).** This skill is the user's request to rename the chat. Call `rename_chat` (`cursor-app-control`) with `[ISSUE-ID] [feature or minimal description]`, e.g. `DEV-1234 Pending deposit repeated 3 times`. Use the Linear identifier as-is and a tightened issue title (strip a leading id if the title repeats it). If rename fails, is aborted, or the conversation cannot be identified, continue.
 
 ### Gate 1 — Stop unless low complexity
 
