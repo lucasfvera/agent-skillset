@@ -71,7 +71,7 @@ All implementation happens in **isolated worktrees**. Phase 3 does not start on 
 - Issue key identifier: `feature/[id-lowercase]-[slug-from-title]`, e.g. `feature/dev-3311-pending-deposit-repeated-3-times`.
 - Slug-only identifier: `feature/[slug]`.
 
-If the user passed `/worktree branch=…` or this chat already has a worktree for this identifier, reuse that **WORKTREE_PATH** (still run Proof and move the agent). A feature branch checked out in `REPO_ROOT` is not a worktree. Use the same branch name, in a worktree.
+If the user passed `/worktree branch=…` or this chat already has a worktree for this identifier, reuse that **WORKTREE_PATH** (still run Proof). A feature branch checked out in `REPO_ROOT` is not a worktree. Use the same branch name, in a worktree.
 
 ### Setup
 
@@ -79,7 +79,8 @@ If the user passed `/worktree branch=…` or this chat already has a worktree fo
 2. For **each** affected `REPO_ROOT`, add a worktree under `~/.cursor/worktrees/$WORKTREE_ID/` (prefer Cursor **`/worktree`** with the same `WORKTREE_ID` + branch for every repo). If creating by hand: `git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" -b "$BRANCH"` from `main` or the existing remote branch. Do not `git checkout` that branch in `REPO_ROOT`.
 3. Run each repo's `.cursor/worktrees.json` setup once if present.
 4. Record `REPO_ROOT → WORKTREE_PATH`.
-5. **Move the agent** into those worktrees before any implementation edit: `move_agent_to_root` (`cursor-app-control`) with `rootPath` (one repo) or `rootPaths` (every `WORKTREE_PATH`). Do not pass any `REPO_ROOT`. If the move fails, stop. Status `stopped`.
+
+Do **not** call `move_agent_to_root` (or `move_agent_to_cloned_root`). That tool fetches `origin/<branch>` and fails or prompts-to-abort on a freshly created local branch, which is the usual case after `worktree add -b`. Isolation is the path, not a workspace move.
 
 ### Isolation (holds through Phase 4)
 
@@ -111,7 +112,7 @@ Then print the table:
 
 Merge back with `/apply-worktree`; cleanup with `/delete-worktree`.
 
-**Done:** Every Proof check passed; the agent root is the worktree(s), not any `REPO_ROOT`; the worktrees table was printed.
+**Done:** Every Proof check passed; the worktrees table was printed. The agent root may still be `REPO_ROOT`.
 
 ---
 
