@@ -18,7 +18,7 @@ The original flow from which I started. I ran, manually, one skill at a time unt
 
 | Skill | When to use it |
 |-------|----------------|
-| `/bmo-block-reviewer` | You want a short, findings-first review of a delivery slice against a specific code-quality bar (typing, tests, duplication), using the actual diff. |
+| `/bmo-block-reviewer` | You want a short, findings-first review of a diff (delivery block, PR slice, or named files) against BMO quality rules and the team learnings catalog. |
 | `/bmo-commit` | You want a conventional commit from what's already staged. Won't auto-stage, edit files, or run formatters. Infers monorepo scope from staged paths. |
 | `/bmo-document-html` | You want a self-contained HTML doc (architecture, migration, handoff) with diagrams, not another markdown file. |
 | `/bmo-git-stack-update-refs-push` | You have a local branch stack to rebase with `--update-refs`, wire to `origin/<branch>`, and publish with force-with-lease. |

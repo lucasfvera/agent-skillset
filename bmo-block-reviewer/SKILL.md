@@ -1,78 +1,64 @@
 ---
 name: bmo-block-reviewer
-description: Reviews a delivered execution block using a specific BMO-style lens instead of a generic defensive code review. Prefer inspecting the actual diff and changed files; use the delivered block text as supporting context. Use when the user says /bmo-block-reviewer, asks to review a block from bmo-step-deliver, wants a short findings-first review of a delivery slice, or when a parent agent spawns one reviewer per digest block.
+description: Findings-first review of a code diff against BMO quality rules and the team learnings catalog.
 disable-model-invocation: true
 ---
 
 # Block reviewer (bmo)
 
-Review the delivered block the way the user reviews it: short, practical, and biased toward code quality that fits their style.
+Review the changed files the way the user reviews them: short, practical, biased toward code quality that fits their style.
+
+This skill covers a delivery-digest block, a PR-fix slice, or any named diff. Parent skills (`bmo-builder`, `bmo-respond-pr-review`) spawn reviewers; they own orchestration.
 
 ## Default evidence
 
 1. Prefer the actual changed files and diff.
-2. Use the delivered block text, verification notes, and review digest as supporting context.
-3. If the diff is unavailable, review the handoff text only and say that the review is limited by missing code context.
-4. Before giving a ship verdict, scan the changed lines for simple rule violations that PR review keeps catching, especially promoted learnings from the catalog.
+2. Use handoff text (block digest, verification notes, review comment) as supporting context.
+3. If the diff is unavailable, review the handoff text only and say the review is limited by missing code context.
 
-## Multi-block orchestration
+## Scope
 
-When the user asks to review **each block** from a `bmo-step-deliver` digest:
-
-**Parent agent**
-
-1. Deliver the slice (implement → verify → review digest) before spawning reviewers.
-2. Spawn **one subagent per block** (`Block A`, `Block B`, …). Wait for all to finish.
-3. Triage each finding: **real** (fix), **style** (fix only when a clear repo/sibling pattern or prior user feedback applies), **deferred** (intentional slice boundary — do not fix).
-4. Fix only **real** issues, rerun the same narrow verification from the handoff, then summarize.
-
-**Pass each subagent:** the block text (including **What to review** and per-file **Review:** bullets), slice `Scope`, plan non-goals, changed file paths, `git diff` for those paths, one sibling file to compare against (e.g. existing deposit publisher), and what verification already passed.
-
-**Subagent rules:** review only this block’s files; treat the block’s **Review:** bullets as acceptance criteria; flag missing work deferred to a later unit under **Deferred (out of scope)** instead of as a blocker; cite the comparison file when flagging pattern drift.
-
-**Parent summary (short):** per block — real / style / deferred — then **Fixing now** vs **Not fixing** with one-line reasons.
+Review only the files in this handoff. When a digest is present, treat its **Review:** bullets as acceptance criteria. Work deferred to a later unit is **Deferred (out of scope)**, not a blocker. Cite a sibling file when flagging pattern drift.
 
 ## What to look for
 
 - Incorrect typing. Never allow `any`.
-- Avoid `as` type assertions unless there is no cleaner option.
+- Type with the real contract; skip `as` unless there is no cleaner option. Do not cast queried elements when the locator already provides the type.
+- Type test fixtures with the producing service's contract types, not loose object shapes.
 - Preserve comments that help the next person understand the code.
-- Do not reward over-defensive checks for unrealistic scenarios.
-- Prefer extracting reusable logic into its own file when that makes testing easier.
-- Look for helper functions that could be extracted into another file for clarity.
-- Check for duplication before accepting new code.
+- Skip over-defensive checks for states that cannot happen on this path.
+- Extract reusable logic into its own file when that makes testing easier.
+- Check for duplication before accepting new code. Reuse shared suite mocks for common dependencies instead of one-off mock shapes.
 - Code that changes together should stay close together.
-- Be mindful about if the introduced code adds latency to the original code.
+- Flag added latency on the hot path of the changed code.
 - Always use strict equality when comparing values.
+- Replace hardcoded numeric defaults with existing constants from schemas or shared packages.
+- Skip display fallbacks for notification or UI states the upstream pipeline never emits. Do not invent default tickers or assets when a lookup is unresolved.
 
 ## When reviewing tests
 
 - Prefer queries from more accessible to less accessible: `getByRole` first, `getByTestId` last.
 - Prefer behavior from the user perspective, not implementation details.
 - Keep queries separate from assertions for readability. Assign `screen.getBy...` results to variables first.
-- Use `user-event` when interaction matters. Avoid `fireEvent` unless there is a clear reason.
+- Use `user-event` when interaction matters. Use `fireEvent` only when user-event cannot drive the case.
 - Avoid magic strings. If a repeated string is needed, extract it to a well-named `SCREAMING_SNAKE_CASE` constant in the same test file.
 - Avoid comments that do not add value. Test code should mostly explain itself.
-- Do not assert on mocked component behavior that the mock itself defines. Instead, assert that the mocked component is rendered when needed, usually through a test id.
+- Do not assert on mocked component behavior that the mock itself defines. Assert that the mocked component is rendered when needed, usually through a test id.
 - If a mocked child receives a transformed value from the real logic under test, asserting that transformed value is acceptable.
-- Fixture values should be as close as possible to real data: UUID v4, real enum members, plausible amounts—not `'tx-123'`, `'user-1'`.
+- Fixture values should be as close as possible to real data: UUID v4, real enum members, plausible amounts, not `'tx-123'` or `'user-1'`.
 - Integration tests should use the shared suite factory and call the generated client the way production does; do not invoke handlers directly or wrap them in test-only helpers.
 - Do not assert negatives for product or timeline choices, route constants, or other details that are not a hard contract.
 - Do not re-test behavior owned by another method or already covered in a related change; keep the spec scoped to the code under review.
 
 ## Accumulated learnings
 
-Team-specific rules distilled from PR review live in
-[`bmo-update-block-reviewer-skill/learnings/catalog.md`](../bmo-update-block-reviewer-skill/learnings/catalog.md).
-Apply them when they strengthen or specialize the rules above.
-Treat catalog entries marked **Promoted: yes** as a required checklist before a good-to-ship verdict.
+Read [`learnings/catalog.md`](learnings/catalog.md) before a ship verdict. Apply every catalog guideline whose category matches this diff (test files → tests; types/schemas → typing; and so on). Scan remaining categories when the change could hit them. The whole catalog binds, not only **Promoted: yes** rows.
+
+**Done:** every matching catalog guideline is a finding or explicitly N/A on the Catalog line. A ship verdict without that read is incomplete.
 
 ## What not to do
 
-- Do not turn this into a generic security or edge-case hunt.
-- Do not invent unlikely failure scenarios just to sound thorough.
-- Do not nitpick style when the block is sound.
-- Do not flood the review with praise or long summaries.
+Stay on this diff's quality bar (typing, tests, duplication, catalog). Skip generic security hunts, invented edge cases, style nits when the block is sound, and praise or long summaries.
 
 ## Output
 
@@ -83,11 +69,15 @@ Use this shape:
 ```markdown
 <highest-signal findings first, one bullet each>
 
+Catalog: <matching catalog ids applied or N/A, one line>
+
 What is fine:
 - <brief note only if worth saying>
 
 Verdict: <short verdict>
 ```
+
+**Done:** output matches this shape; the Catalog line is present; Verdict is not ship unless Catalog is filled.
 
 ## Finding style
 

@@ -13,7 +13,7 @@ argument-hint: "[optional session id or filename fragment; default all pending]"
 
 # Update block reviewer from PR feedback
 
-Turn **pending inbox captures** into abstract guidelines for [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md). Keep this skill thin. Store durable rules in [learnings/catalog.md](learnings/catalog.md).
+Turn **pending inbox captures** into abstract guidelines for [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md). Keep this skill thin. Store durable rules in [`../bmo-block-reviewer/learnings/catalog.md`](../bmo-block-reviewer/learnings/catalog.md).
 
 **Typical trigger:** run in a **separate session** after one or more [`bmo-respond-pr-review`](../bmo-respond-pr-review/SKILL.md) runs. Each respond session writes to [inbox/pending/](inbox/pending/).
 
@@ -101,7 +101,7 @@ Process **dismissed** threads when they encode a standing preference.
 
 ## 4. Dedupe
 
-Read [learnings/catalog.md](learnings/catalog.md).
+Read [`../bmo-block-reviewer/learnings/catalog.md`](../bmo-block-reviewer/learnings/catalog.md).
 
 Dedupe in two passes:
 
@@ -177,5 +177,5 @@ If extraction fails for one file, leave it in `pending/` and report which file w
 - Session capture format: [references/session-capture.md](references/session-capture.md)
 - Extraction: [references/extraction-rules.md](references/extraction-rules.md)
 - Promotion: [references/promotion-rules.md](references/promotion-rules.md)
-- Catalog: [learnings/catalog.md](learnings/catalog.md)
+- Catalog: [`../bmo-block-reviewer/learnings/catalog.md`](../bmo-block-reviewer/learnings/catalog.md)
 - Recovery fetch (only if a capture is missing): [references/fetch-pr-feedback.md](references/fetch-pr-feedback.md)

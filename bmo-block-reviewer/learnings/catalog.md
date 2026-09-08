@@ -2,9 +2,9 @@
 
 Abstract guidelines distilled from PR review session captures in `inbox/`. **Do not paste verbatim comments here.**
 
-Pending captures live in [inbox/pending/](../inbox/pending/). Processed captures move to [inbox/actioned/](../inbox/actioned/). Run [`bmo-update-block-reviewer-skill`](../SKILL.md) to merge pending feedback into this catalog.
+Pending captures live in [`bmo-update-block-reviewer-skill/inbox/pending/`](../../bmo-update-block-reviewer-skill/inbox/pending/). Processed captures move to [`inbox/actioned/`](../../bmo-update-block-reviewer-skill/inbox/actioned/). Run [`bmo-update-block-reviewer-skill`](../../bmo-update-block-reviewer-skill/SKILL.md) to merge pending feedback into this catalog.
 
-The block reviewer skill stays short. See [promotion rules](../references/promotion-rules.md) for what moves into `bmo-block-reviewer/SKILL.md`.
+The block reviewer skill stays short. See [promotion rules](../../bmo-update-block-reviewer-skill/references/promotion-rules.md) for what moves into [`SKILL.md`](../SKILL.md).
 
 ---
 
@@ -38,7 +38,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Type test fixtures with the actual contract types from the producing service rather than loose object shapes. |
 | **Rationale** | Contract-typed fixtures catch shape drift at compile time and document the expected integration boundary. |
 | **Sources** | roxom-markets/door#218, roxom-markets/roxtarsverse#751, roxom-markets/window#801 |
-| **Promoted** | yes |
+| **Promoted** | yes (already in block-reviewer) |
 
 ### test-typed-stubs
 
@@ -120,7 +120,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Reuse shared suite mocks for common dependencies instead of inventing one-off mock shapes in a single spec. |
 | **Rationale** | Shared mocks keep harness behavior consistent and avoid drift from the suite baseline. |
 | **Sources** | roxom-markets/roxtarsverse#751, roxom-markets/window#801 |
-| **Promoted** | no |
+| **Promoted** | yes (already in block-reviewer) |
 
 ### test-unit-owned-contract
 
@@ -140,7 +140,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Do not assert negatives for product or timeline choices, route constants, or implementation details that are not a hard contract. |
 | **Rationale** | Those assertions lock in incidental decisions and add noise without protecting a real invariant. |
 | **Sources** | roxom-markets/window#801, roxom-markets/roxtarsverse#824 |
-| **Promoted** | yes |
+| **Promoted** | yes (already in block-reviewer) |
 
 ### test-unauthenticated-when-middleware-allows
 
@@ -160,7 +160,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Write integration tests against the shared suite factory and generated client the way production consumes the API; do not boot a parallel harness, call handlers directly, or wrap the client in test-only helpers or extra Promises. |
 | **Rationale** | One-off harnesses and handler wrappers drift from real consumption and hide setup the rest of the suite already owns. |
 | **Sources** | roxom-markets/roxtarsverse#823, roxom-markets/roxtarsverse#824, roxom-markets/roxtarsverse#825 |
-| **Promoted** | yes |
+| **Promoted** | yes (already in block-reviewer) |
 
 ### no-overlapping-method-tests
 
@@ -170,7 +170,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Do not re-test behavior owned by another method or already covered in a related change; keep the spec scoped to the code under review. |
 | **Rationale** | Overlapping cases duplicate coverage, couple unrelated PRs, and make the spec harder to trust. |
 | **Sources** | roxom-markets/roxtarsverse#824, roxom-markets/roxtarsverse#825 |
-| **Promoted** | yes |
+| **Promoted** | yes (already in block-reviewer) |
 
 ### no-unproven-indirect-assertions
 
@@ -222,7 +222,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Do not add display fallbacks for notification or UI states the upstream pipeline never emits, and do not invent default tickers or assets when a lookup is unresolved. |
 | **Rationale** | Fallback copy for impossible or unresolved states misleads readers and hides gaps between product intent and actual event contracts. |
 | **Sources** | roxom-markets/roxtopia#832, roxom-markets/roxtopia#958 |
-| **Promoted** | yes |
+| **Promoted** | yes (already in block-reviewer) |
 
 ### keep-proto-success-envelopes
 
@@ -294,7 +294,7 @@ The block reviewer skill stays short. See [promotion rules](../references/promot
 | **Guideline** | Replace hardcoded numeric defaults with existing constants from schemas or shared packages. |
 | **Rationale** | Shared constants keep defaults consistent across services and make updates single-sourced. |
 | **Sources** | roxom-markets/roxtopia#843, roxom-markets/roxtopia#859 |
-| **Promoted** | yes |
+| **Promoted** | yes (already in block-reviewer) |
 
 ### type-appropriate-operations
 

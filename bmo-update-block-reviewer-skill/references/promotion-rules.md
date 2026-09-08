@@ -2,7 +2,7 @@
 
 ## Default
 
-**Do not promote.** New learnings stay in [learnings/catalog.md](../learnings/catalog.md). The block reviewer reads the catalog via its **Accumulated learnings** pointer.
+**Do not promote.** New learnings stay in [`bmo-block-reviewer/learnings/catalog.md`](../../bmo-block-reviewer/learnings/catalog.md). The block reviewer reads the catalog via its **Accumulated learnings** pointer. The whole catalog binds on every review, not only promoted rows.
 
 ## Promote only when all apply
 
@@ -35,9 +35,7 @@ On the first promotion (or first run if the pointer is missing), add to `bmo-blo
 ```markdown
 ## Accumulated learnings
 
-Team-specific rules distilled from PR review live in
-[`bmo-update-block-reviewer-skill/learnings/catalog.md`](../bmo-update-block-reviewer-skill/learnings/catalog.md).
-Apply them when they strengthen or specialize the rules above.
+Read [`learnings/catalog.md`](learnings/catalog.md) before a ship verdict. Apply every catalog guideline whose category matches this diff. The whole catalog binds, not only **Promoted: yes** rows.
 ```
 
 ## Batch limit
