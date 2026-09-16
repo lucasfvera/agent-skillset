@@ -70,6 +70,16 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | **Sources** | roxom-markets/roxtopia#1074 |
 | **Promoted** | yes (already in block-reviewer) |
 
+### catch-unknown-not-any
+
+| Field | Value |
+|-------|-------|
+| **Category** | typing |
+| **Guideline** | Catch errors as unknown and narrow with instanceof Error; never type the catch binding as any. |
+| **Rationale** | any on catch hides the real error shape and diverges from how sibling handlers already narrow failures. |
+| **Sources** | roxom-markets/roxtarsverse#824 |
+| **Promoted** | yes (already in block-reviewer) |
+
 ## Tests
 
 ### test-realistic-fixtures
@@ -117,9 +127,9 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | Field | Value |
 |-------|-------|
 | **Category** | tests |
-| **Guideline** | Reuse shared suite mocks for common dependencies instead of inventing one-off mock shapes in a single spec. |
-| **Rationale** | Shared mocks keep harness behavior consistent and avoid drift from the suite baseline. |
-| **Sources** | roxom-markets/roxtarsverse#751, roxom-markets/window#801 |
+| **Guideline** | Reuse shared suite mocks and render helpers for common dependencies instead of inventing one-off mock shapes or local provider wrappers in a single spec. |
+| **Rationale** | Shared mocks and renderers keep harness behavior consistent and avoid drift from the suite baseline. |
+| **Sources** | roxom-markets/roxtarsverse#751, roxom-markets/window#801, roxom-markets/roxtopia#1162 |
 | **Promoted** | yes (already in block-reviewer) |
 
 ### test-unit-owned-contract
@@ -137,9 +147,9 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | Field | Value |
 |-------|-------|
 | **Category** | tests |
-| **Guideline** | Do not assert negatives for product or timeline choices, route constants, or implementation details that are not a hard contract. |
+| **Guideline** | Do not assert negatives for product or timeline choices, route constants, implementation details that are not a hard contract, or that a removed path is absent unless the change is a regression fix. |
 | **Rationale** | Those assertions lock in incidental decisions and add noise without protecting a real invariant. |
-| **Sources** | roxom-markets/window#801, roxom-markets/roxtarsverse#824 |
+| **Sources** | roxom-markets/window#801, roxom-markets/roxtarsverse#824, roxom-markets/roxtopia#1175 |
 | **Promoted** | yes (already in block-reviewer) |
 
 ### test-unauthenticated-when-middleware-allows
@@ -192,6 +202,66 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | **Sources** | roxom-markets/roxtopia#1074 |
 | **Promoted** | yes (already in block-reviewer) |
 
+### no-css-class-assertions
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Do not assert CSS class names or visual styling in unit tests; cover behavior instead, and drop the case if it cannot be tested that way. |
+| **Rationale** | Class and style assertions are brittle and are not what these suites are for. |
+| **Sources** | roxom-markets/roxtopia#1182, roxom-markets/roxtopia#1197 |
+| **Promoted** | yes |
+
+### no-self-asserting-constants
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Do not write tests that only assert a hardcoded constant, alias, or reassignment against itself. |
+| **Rationale** | Those tests pass without exercising behavior and lock in incidental wiring. |
+| **Sources** | roxom-markets/roxtopia#1196, roxom-markets/roxtopia#1231 |
+| **Promoted** | yes |
+
+### test-live-export-not-leftover
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Test the live exported copy of a component; do not add or keep specs that only cover an unused leftover duplicate. |
+| **Rationale** | Leftover copies drift from the public export and make it look like two implementations are in play. |
+| **Sources** | roxom-markets/roxtopia#1198 |
+| **Promoted** | no |
+
+### test-names-describe-behavior
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Name tests for the product behavior, not a flag, unit, or leftover condition the change is removing. |
+| **Rationale** | Flag- or unit-tied titles go stale when the gate is untangled or the feature becomes unit-agnostic. |
+| **Sources** | roxom-markets/roxtopia#1175, roxom-markets/roxtopia#1178 |
+| **Promoted** | yes |
+
+### shared-test-config-ports
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Put integration listen ports in the shared test config map, one entry per suite; do not hardcode ports in the spec or collapse suites onto one listen port. |
+| **Rationale** | Per-file ports drift, and a single shared port races under parallel workers. |
+| **Sources** | roxom-markets/roxtarsverse#823, roxom-markets/roxtarsverse#824, roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
+
+### match-sibling-test-location
+
+| Field | Value |
+|-------|-------|
+| **Category** | tests |
+| **Guideline** | Place new integration specs in the same folder as sibling endpoint tests. |
+| **Rationale** | A second folder invents a layout the rest of the suite does not use. |
+| **Sources** | roxom-markets/roxtarsverse#823 |
+| **Promoted** | no |
+
 ## Architecture
 
 ### no-wire-type-paths
@@ -234,6 +304,106 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | **Sources** | roxom-markets/roxtarsverse#825 |
 | **Promoted** | no |
 
+### validate-inbound-ids-at-handler
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Validate inbound ID format at the handler before calling the service, and return the domain invalid-id error instead of letting the database fail. |
+| **Rationale** | A bad UUID should be a client error at the API boundary, not a driver exception from the store. |
+| **Sources** | roxom-markets/roxtarsverse#823, roxom-markets/roxtarsverse#824, roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
+
+### generic-errors-to-callers
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Return a generic internal message to callers for unmapped failures; log the full error only. |
+| **Rationale** | Raw database or driver errors leak internals and are not a stable client contract. |
+| **Sources** | roxom-markets/roxtarsverse#823, roxom-markets/roxtarsverse#824, roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
+
+### db-constraint-matches-service-rule
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | When a service enforces a format rule, add a matching database CHECK constraint and keep the two expressions equal. |
+| **Rationale** | A service-only rule lets bad rows in through other writers; a mismatched constraint drifts from the domain. |
+| **Sources** | roxom-markets/roxtarsverse#824 |
+| **Promoted** | no |
+
+### validate-before-transaction
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Run cheap validation before opening a transaction so invalid requests do not hold connections. |
+| **Rationale** | Transactions are scarce; format failures should fail before they occupy a client. |
+| **Sources** | roxom-markets/roxtarsverse#824 |
+| **Promoted** | no |
+
+### no-transaction-for-single-read
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Do not open a transaction for a single read; use the non-transaction query path siblings already have. |
+| **Rationale** | A transaction around one SELECT adds lock and connection cost with no atomicity benefit. |
+| **Sources** | roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
+
+### skip-empty-table-backfill
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Do not add a data backfill when production and recreate-from-migrations both start empty; add a NOT NULL column in one step. |
+| **Rationale** | An UPDATE on an empty table is dead migration surface. |
+| **Sources** | roxom-markets/roxtarsverse#824 |
+| **Promoted** | no |
+
+### one-handler-per-file
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Put each HTTP or gRPC handler in its own file rather than bundling multiple endpoints together. |
+| **Rationale** | One file per endpoint is easier to test, track, and read, and matches the usual handler layout. |
+| **Sources** | roxom-markets/window#803 |
+| **Promoted** | no |
+
+### map-upstream-errors-to-http
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Map errors at the HTTP boundary: client and validation failures 4xx, faults in this service 5xx, upstream or transport failures 502; do not forward proto codes in the HTTP body. |
+| **Rationale** | Forwarded upstream codes leak internal contracts and mix client mistakes with dependency outages. |
+| **Sources** | roxom-markets/window#802 |
+| **Promoted** | no |
+
+### auth-identity-is-401
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Map upstream rejection of the session identity to 401, not 500. |
+| **Rationale** | A rejected session user is an auth failure, the same as a missing session, not an internal error. |
+| **Sources** | roxom-markets/window#803 |
+| **Promoted** | no |
+
+### one-shared-hook-not-domain-copy
+
+| Field | Value |
+|-------|-------|
+| **Category** | architecture |
+| **Guideline** | Keep shared client hooks in a shared module; do not duplicate them under a domain folder. A compatibility re-export is enough for old import paths. |
+| **Rationale** | Domain-copied hooks diverge fetch paths and cache behavior from the rest of the app. |
+| **Sources** | roxom-markets/roxtopia#1179 |
+| **Promoted** | no |
+
 ## Patterns
 
 ### avoid-thin-wrappers
@@ -243,7 +413,7 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | **Category** | patterns |
 | **Guideline** | Avoid thin wrapper functions when a simple inline check at the call site is clearer. |
 | **Rationale** | Unnecessary wrappers add indirection without improving testability or reuse. |
-| **Sources** | roxom-markets/roxtopia#833 |
+| **Sources** | roxom-markets/roxtopia#833, roxom-markets/roxtarsverse#824, roxom-markets/window#803 |
 | **Promoted** | no |
 
 ### avoid-useeffect-derived-state
@@ -343,7 +513,7 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | **Category** | patterns |
 | **Guideline** | Do not force a shared helper across similar paths when contracts, return shapes, or domain branches diverge enough that sharing adds indirection without gain. |
 | **Rationale** | Forced reuse can obscure differences that callers rely on and inflate the shared API for little benefit. |
-| **Sources** | roxom-markets/roxtopia#859 |
+| **Sources** | roxom-markets/roxtopia#859, roxom-markets/roxtopia#1178 |
 | **Promoted** | no |
 
 ### match-sibling-ui-patterns
@@ -353,7 +523,7 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | **Category** | patterns |
 | **Guideline** | When fixing UI layout or scroll behavior, match the working pattern from sibling components in the same feature before inventing a new approach. |
 | **Rationale** | Sibling patterns already encode viewport and chrome constraints that ad-hoc fixes miss. |
-| **Sources** | roxom-markets/roxtopia#956 |
+| **Sources** | roxom-markets/roxtopia#956, roxom-markets/roxtopia#1183 |
 | **Promoted** | no |
 
 ### extend-via-optional-props
@@ -383,7 +553,7 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | **Category** | patterns |
 | **Guideline** | Register routes, middleware, and handlers using the same shape as siblings in the file; only add extra middleware or wrappers when this endpoint actually needs them. |
 | **Rationale** | Handler-exported path constants and one-off wrappers invent a second registration style the rest of the router does not use. |
-| **Sources** | roxom-markets/window#801 |
+| **Sources** | roxom-markets/window#801, roxom-markets/window#802 |
 | **Promoted** | no |
 
 ### match-generated-client-calls
@@ -426,6 +596,126 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | **Sources** | roxom-markets/roxtarsverse#824 |
 | **Promoted** | no |
 
+### consume-original-shared-exports
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Consume the original shared export for canonical lists, constants, and endpoint paths; do not duplicate a local array, path string, or renaming re-export. |
+| **Rationale** | Local copies and aliases drift when items are added, removed, or sorted. |
+| **Sources** | roxom-markets/roxtopia#1179, roxom-markets/roxtopia#1231 |
+| **Promoted** | no |
+
+### shared-error-constants
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Map errors with shared constants or typed errors on both sides; do not compare free-form error strings. |
+| **Rationale** | A typo in a string comparison silently maps to the wrong client code. |
+| **Sources** | roxom-markets/roxtarsverse#824 |
+| **Promoted** | no |
+
+### reproducible-codegen-config
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Fix the generator config so clients are reproducible; do not hand-write generated files. |
+| **Rationale** | Hand-edited generated output diverges from the next generate run. |
+| **Sources** | roxom-markets/roxtarsverse#823, roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
+
+### dispatch-by-sent-field
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Resolve lookups from the field the caller sent; do not sniff UUID shape or add a path that echoes IDs back unchanged. |
+| **Rationale** | Shape-sniffing treats invalid IDs as symbols and identity passthrough hides whether a lookup occurred. |
+| **Sources** | roxom-markets/window#803 |
+| **Promoted** | no |
+
+### derive-http-types-from-domain
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Derive HTTP projections from the domain type instead of restating a parallel interface for the same entity. |
+| **Rationale** | Parallel types drift and reviewers cannot tell which shape is canonical. |
+| **Sources** | roxom-markets/window#803 |
+| **Promoted** | no |
+
+### no-empty-string-as-undefined
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Do not coerce empty string to undefined via truthiness; validate required fields before the helper, and treat only undefined as omitted. |
+| **Rationale** | Truthy defaults hide invalid empty input and change the helper's contract. |
+| **Sources** | roxom-markets/window#803 |
+| **Promoted** | no |
+
+### keep-canonical-separate-from-display
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Keep the canonical stored or original value separate from display formatting; do not persist masks, derive originals from painted strings, or treat formatted output as the source of truth. |
+| **Rationale** | Display formatting is a read-path concern; storing or reversing it corrupts the contract. |
+| **Sources** | roxom-markets/roxtarsverse#824, roxom-markets/roxtopia#1194 |
+| **Promoted** | no |
+
+### colocate-handler-schemas
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Put request schemas in a sibling schema file next to the handler, matching existing handler-dir patterns. |
+| **Rationale** | Inline schemas clutter the handler and diverge from how other endpoints colocate validation. |
+| **Sources** | roxom-markets/window#802 |
+| **Promoted** | no |
+
+### single-loading-skeleton
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Do not add a second skeleton for a dependent field; hide it until the existing load finishes. |
+| **Rationale** | Extra skeletons imply a separate wait and duplicate loading chrome. |
+| **Sources** | roxom-markets/roxtopia#1178 |
+| **Promoted** | no |
+
+### use-decimal-helpers
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Use shared decimal helpers for money and FX math; do not use native number division. |
+| **Rationale** | Native division loses precision that decimal.js helpers already encapsulate. |
+| **Sources** | roxom-markets/roxtopia#1183 |
+| **Promoted** | no |
+
+### log-presence-not-secrets
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Log whether a secret exists, never the secret itself. |
+| **Rationale** | Presence flags are enough for diagnostics; logging the value leaks it. |
+| **Sources** | roxom-markets/roxtarsverse#825 |
+| **Promoted** | no |
+
+### no-redundant-membership-guards
+
+| Field | Value |
+|-------|-------|
+| **Category** | patterns |
+| **Guideline** | Do not re-check list membership for values already produced from that list; keep only the type guard the callback's declared type requires. |
+| **Rationale** | Extra includes checks imply the mapped items are untrusted and duplicate the source list. |
+| **Sources** | roxom-markets/roxtopia#1162 |
+| **Promoted** | no |
+
 ## Style
 
 ### precise-docstrings
@@ -443,9 +733,9 @@ The block reviewer skill stays short. See [promotion rules](../../bmo-update-blo
 | Field | Value |
 |-------|-------|
 | **Category** | style |
-| **Guideline** | Add what-and-why docstrings on helpers whose purpose is not obvious from the name alone. |
-| **Rationale** | Non-obvious helpers need context about the data contract they bridge, not just a restatement of the function name. |
-| **Sources** | roxom-markets/roxtopia#843 |
+| **Guideline** | Add what-and-why docstrings on helpers and public components whose purpose or variant options are not obvious from the name alone. |
+| **Rationale** | Non-obvious helpers and variant APIs need context about the contract they expose, not just a restatement of the name. |
+| **Sources** | roxom-markets/roxtopia#843, roxom-markets/roxtopia#1162 |
 | **Promoted** | no |
 
 ### comment-regex-patterns

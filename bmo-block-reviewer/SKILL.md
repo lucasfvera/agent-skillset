@@ -49,6 +49,9 @@ Review only the files in this handoff. When a digest is present, treat its **Rev
 - Integration tests should use the shared suite factory and call the generated client the way production does; do not invoke handlers directly or wrap them in test-only helpers.
 - Do not assert negatives for product or timeline choices, route constants, or other details that are not a hard contract.
 - Do not re-test behavior owned by another method or already covered in a related change; keep the spec scoped to the code under review.
+- Do not assert CSS class names or visual styling in unit tests; cover behavior, or drop the case.
+- Do not write tests that only assert a hardcoded constant or alias against itself.
+- Name tests for the product behavior, not a flag, unit, or leftover condition the change is removing.
 
 ## Accumulated learnings
 
