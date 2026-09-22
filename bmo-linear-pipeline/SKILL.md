@@ -1,11 +1,11 @@
 ---
 name: bmo-linear-pipeline
-description: Triages a Linear issue and, when complexity is Low, hands off to bmo-builder for plan through PR.
+description: Triages a Linear issue and, on pickup, hands off to bmo-builder for plan through PR.
 disable-model-invocation: true
 argument-hint: "[linear issue url]"
 ---
 
-CRITICAL: Triage first. Do not plan or implement until Gate 1 passes. After Gate 1, execute `bmo-builder` to completion in this same turn. Builder completion includes proven isolated worktrees before any implementation edit.
+Triage, then Gate 1, then `bmo-builder` in this same turn. Builder starts only after Gate 1 passes. Builder completion includes proven isolated worktrees before any implementation edit.
 
 When invoking child skills, **read their `SKILL.md` first** from `~/.cursor/skills/<name>/SKILL.md` and follow them.
 
@@ -26,34 +26,48 @@ At start, note:
 
 1. Read and follow [`bmo-triage`](../bmo-triage/SKILL.md) using the Linear issue from `$ARGUMENTS`.
 2. Produce the triage output (full template or early-exit template).
-3. **Chat title (recommended).** This skill is the user's request to rename the chat. Call `rename_chat` (`cursor-app-control`) with `[ISSUE-ID] [feature or minimal description]`, e.g. `DEV-1234 Pending deposit repeated 3 times`. Use the Linear identifier as-is and a tightened issue title (strip a leading id if the title repeats it). If rename fails, is aborted, or the conversation cannot be identified, continue.
+3. **Chat title (recommended).** Call `rename_chat` (`cursor-app-control`) with `[ISSUE-ID] [feature or minimal description]`, e.g. `DEV-1234 Pending deposit repeated 3 times`. Use the Linear identifier as-is and a tightened issue title (strip a leading id if the title repeats it). If rename fails, is aborted, or the conversation cannot be identified, continue.
 
-### Gate 1 — Stop unless low complexity
+**Done:** triage template is in chat.
 
-**Exit immediately** (pipeline `exited-early`) when **any** of these is true:
+### Gate 1 — Pickup
 
-| Condition | Action |
-|-----------|--------|
-| Triage **early exit** (`Skip — unreachable` or `Skip — already done`) | Stop. Output [Early exit output](#early-exit-output). **No planning, no code.** |
-| **Complexity** is **Medium** or **High** | Stop. Output [Early exit output](#early-exit-output) with verdict **Stop — complexity not Low**. **No planning, no code.** |
-| Complexity row missing or ambiguous | Stop. Ask user to confirm complexity manually; do not proceed until **Low** is confirmed. |
+Read the triage output. Do not re-score. The **Pickup** cell is the gate; its formula lives in `bmo-triage`.
 
-**Proceed only when** the triage **Scores** table shows **Complexity | Low** (case-insensitive).
+**Pass** when **all** of these hold:
 
-### Triage verdict (mandatory before Phase 2)
+- Verdict is `Proceed` (not Skip, not Block)
+- Scores **Pickup** is `Yes` (case-insensitive)
+
+Then output the [Triage verdict](#triage-verdict) block. Status stays `running`.
+
+**Stop** on the first match (status `exited-early`, emit [Early exit output](#early-exit-output), leave `bmo-builder` unread):
+
+| Triage | Pipeline verdict |
+|--------|------------------|
+| `Skip — unreachable` or `Skip — already done` | same Skip verdict |
+| `Block — AC unclear` | `Stop — AC unclear` |
+| Pickup `No` | `Stop — not pickup` |
+| Full template, Pickup row missing or not Yes/No | Ask once to confirm pickup; stop until the user sets Pickup to Yes |
+
+Block wins over Pickup Yes: unclear AC never starts builder.
+
+**Done:** verdict block in chat and Pickup is Yes, **or** early-exit template in chat and status is `exited-early`.
+
+### Triage verdict
 
 When Gate 1 passes, output this block **in chat** before handing off:
 
 ```markdown
 ## Triage verdict: [IDENTIFIER]
 
-**Verdict:** Proceed · **Complexity:** Low · **Type:** [Bug / Feature / Chore]
+**Verdict:** Proceed · **Pickup:** Yes · **Complexity:** [Low / Medium] · **ROI:** [High / Medium] · **Type:** [Bug / Feature / Chore]
 **Repos (n):** [repo-a] (1) — or list all with count
 
 [1–2 sentences: what the issue is and likely root cause / gap, if known from triage]
 ```
 
-**Done:** Verdict block is in chat; complexity is Low; status is still `running`.
+**Done:** Verdict block is in chat; Pickup is Yes; status is still `running`.
 
 ---
 
@@ -72,7 +86,7 @@ Repos: [from triage]
 Acceptance / gaps:
 [AC and gaps from triage]
 
-Triage: Proceed · Complexity: Low
+Triage: Proceed · Pickup: Yes · Complexity: [Low / Medium] · ROI: [from triage]
 ```
 
 When the builder finishes, set pipeline status to `done`.
@@ -88,7 +102,7 @@ When Gate 1 stops the pipeline, output:
 ```markdown
 # Pipeline stopped: [IDENTIFIER]
 
-**Verdict:** [Skip — unreachable | Skip — already done | Stop — complexity not Low]
+**Verdict:** [Skip — unreachable | Skip — already done | Stop — AC unclear | Stop — not pickup]
 **Link:** [url]
 
 ## Findings
@@ -105,17 +119,6 @@ Set pipeline status to `exited-early`.
 
 ---
 
-## What this pipeline does **not** do
+## Scope
 
-- Pick up **Medium** or **High** complexity issues
-- Plan, deliver, or open PRs itself (that is `/bmo-builder`)
-- Force-push to shared branches
-- Replace human review for large or ambiguous work
-
----
-
-## Quick invoke
-
-```
-/bmo-linear-pipeline https://linear.app/team/issue/ENG-123
-```
+On pickup: run `bmo-builder` to PRs. Otherwise: stop with the early-exit template.

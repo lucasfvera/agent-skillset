@@ -235,7 +235,7 @@ If the handoff included a triage verdict, append:
 
 ```markdown
 ## Triage (reference)
-Proceed · Complexity: Low · Repos (n): [same as above]
+Proceed · Pickup: Yes · Complexity: [Low / Medium] · Repos (n): [same as above]
 ```
 
 Set run status to `done`.

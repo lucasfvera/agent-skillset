@@ -29,7 +29,7 @@ The original flow from which I started. I ran, manually, one skill at a time unt
 | `/bmo-step-deliver` | You want work in reviewable slices: scope, verification commands, and a structured review digest. Stops after each unit until you say continue. |
 | `/bmo-step-planner` | The task is big or cross-cutting and you want a plan (U1, U2, …) written under `.cursor/plans` before anyone writes code. |
 | `/bmo-sync-repo-documentation` | Scripts, paths, env, or public APIs changed and docs (README, `docs/`, AGENTS.md, `.cursor` rules/skills) may be out of date. |
-| `/bmo-triage` | You have a Linear issue and want complexity, importance, and ROI before planning or coding. Skips issues that are done or unreachable. |
+| `/bmo-triage` | You have a Linear issue and want complexity, Kano user value, importance, and ROI before planning or coding. Blocks when acceptance criteria are not explicit or derivable; skips issues that are done or unreachable. |
 | `/bmo-update-block-reviewer-skill` | Pending session captures in `inbox/pending/` need distilling into the learnings catalog and promotion into `bmo-block-reviewer`. |
 
 ## Workflows
@@ -46,7 +46,7 @@ The original flow from which I started. I ran, manually, one skill at a time unt
 
 | When to use it |
 |----------------|
-| Hands-off pickup of a low-complexity Linear issue: triage first, then hand off to `/bmo-builder`. Stops on medium/high complexity or if triage says skip. |
+| Hands-off pickup of a Linear issue: triage first, then Gate 1 reads the triage **Pickup** cell. On Yes, hand off to `/bmo-builder`. Stops on Skip, unclear AC, or Pickup No. |
 
 ### `/bmo-respond-pr-review`
 

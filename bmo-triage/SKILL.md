@@ -1,17 +1,13 @@
 ---
 name: bmo-triage
-description: Triages a Linear issue from a URL into complexity, importance, and ROI (user value vs implementation effort). Exits early when the issue is unreachable or already closed. Use when the user invokes /bmo-triage or passes a Linear issue link for prioritization before planning or implementation.
+description: Triages a Linear issue into complexity, Kano user value, importance, and ROI. Blocks when acceptance criteria are not explicit or derivable; skips unreachable or already-closed issues.
 disable-model-invocation: true
+argument-hint: "[linear issue url]"
 ---
 
 # Triage (bmo)
 
-**Planning only** — fetch and analyze the Linear issue; do **not** implement code, never.
-
-## When to use
-
-- User passes a **Linear issue URL** (or identifier like `ENG-123`) and wants a quick **go / no-go** read.
-- User asks for **complexity**, **importance**, or **ROI** before picking up work.
+Triage output only: fetch the Linear issue, score it, emit the template.
 
 ## Workflow
 
@@ -19,61 +15,119 @@ disable-model-invocation: true
 
 1. Extract identifier from the link (`ENG-123`, `ROX-456`, etc.) or use the identifier directly.
 2. Fetch issue data via **Linear MCP** (preferred). If tools are missing or auth fails, call `mcp_auth` once and retry. Fallback: `gh` if the issue is linked to GitHub, or ask the user to paste title + description.
-3. Read at minimum: **title**, **description**, **status**, **priority**, **labels**, **comments** (recent), **linked PRs**, **project/team**, **acceptance criteria** (if in a dedicated field or checklist).
+3. Read at minimum: **title**, **description**, **status**, **priority**, **labels**, **comments** (recent), **linked PRs**, **project/team**, **acceptance criteria** (dedicated field, checklist, or description).
+
+**Done:** identifier resolved and those fields read, or fetch failed (then step 2).
 
 ### 2) Early exit (mandatory)
 
-Stop triage and output only the **Early exit** template when **any** of these is true:
+Stop and emit only the **Early exit** template when **any** of these is true:
 
 | Condition | Verdict |
 |-----------|---------|
 | Issue not found, private without access, or fetch failed | `Skip — unreachable` |
 | Status is terminal / no work expected | `Skip — already done` |
 
-Treat these statuses as **terminal** (case-insensitive): `Done`, `Completed`, `Canceled`, `Cancelled`, `Duplicate`, `Won't fix`, `Wont fix`, `Archived`, `Released`, `Deployed` (when clearly shipped).
+Treat as **terminal** when Linear `statusType` is `completed` or `canceled`, or the status name matches (case-insensitive): `Done`, `Completed`, `Ready for release`, `Canceled`, `Cancelled`, `Duplicate`, `Won't fix`, `Wont fix`, `Archived`, `Released`, `Deployed` (when clearly shipped).
 
-If status is ambiguous (e.g. `In Review` with open PR), **do not** early-exit — note it and continue.
+If status is ambiguous (e.g. `In Review` with open PR), continue triage and note the status.
+
+**Done:** Skip template emitted, or neither skip condition holds.
 
 ### 3) Analyze
 
-Answer each row honestly from issue content + light codebase search only when repos are unclear.
+Fill every Findings row from the issue. Missing detail goes under **Gaps** (no invented facts). If a bug's **Reproducible** is `No`, list the missing steps there.
 
 | Dimension | What to judge |
 |-----------|----------------|
 | **Type** | Feature, Bug, Chore, or Unknown |
 | **Clarity** | Is the problem/ask understandable? **Clear** / **Partial** / **Unclear** |
-| **Acceptance criteria** | **Yes** (testable checklist or explicit done-when) / **Partial** / **No** |
+| **Acceptance criteria** | **Explicit** / **Derived** / **Unclear** — see AC below |
 | **Reproducible** (bugs only) | **Yes** / **Maybe** / **No** / **N/A** (features/chores) — steps, env, account state, screenshots, logs |
 | **Stack** | **Frontend** / **Backend** / **Fullstack** / **Unknown** |
-| **Repos** | List likely repos; count them. Infer from labels, paths in description, linked PRs, or a quick search in the open workspace. Mark **uncertain** when guessing. |
+| **Repos** | Git remotes (not packages/apps in a monorepo). Names and count from labels, paths, linked PRs, or at most two workspace searches. Mark **certain** / **inferred**. Count is a finding, not a band. |
 
-**Complexity** (`Low` | `Medium` | `High`) — implementation effort, not user impact:
+#### Acceptance criteria (blocker)
 
-- **Low** — localized change, known pattern, 1 repo, no migration/schema churn, clear fix.
-- **Medium** — multiple files or layers, some unknowns, tests need setup, 2 repos, or moderate integration.
-- **High** — cross-cutting, new contracts, migrations, unclear root cause, 3+ repos, or high regression risk.
+A testable done-when, from either source:
 
-**User value** (`Low` | `Medium` | `High`) — benefit to end users if shipped. Use the Kano model to determine the user value.
+- **Explicit** — checklist, dedicated AC field, or numbered done-when in the issue.
+- **Derived** — no AC field, but the description still yields a testable done-when. Quote that done-when in the Findings one-liner.
+- **Unclear** — cannot name a testable done-when. **Blocker.** Verdict `Block — AC unclear`. Suggested next step: get a testable done-when. Still score the issue.
 
-- **High** — blocks core flows, revenue/trust, many users, or strong product signal.
-- **Medium** — meaningful improvement or painful bug for a subset.
-- **Low** — polish, internal-only, edge case, or nice-to-have.
+**Done:** every Findings row filled; AC is Explicit, Derived (with quoted done-when), or Unclear.
 
-**Importance** (`Low` | `Medium` | `High`) — urgency / priority for the team (use Linear priority, due date, incident labels, SLA, or explicit “blocking” language; do not conflate with user value).
+#### Complexity (`Low` | `Medium` | `High`)
 
-**ROI** (`Low` | `Medium` | `High`) — value relative to complexity:
+Implementation effort, not user impact. **Highest matching band wins.** **Low** only when every Low condition holds and no Medium or High bullet matches. Git-repo count does not set the band: two remotes can still be Low when the change is the same localized pattern in each.
+
+**Low** — all of:
+
+- Change is nameable (clear fix)
+- Localized to one area, or the same pattern in a second git repo
+- Existing pattern
+- No new contract, migration, or schema churn
+
+**Medium** — any of:
+
+- Distinct layers that both must change (e.g. UI + existing API) without new contracts
+- A **bounded unknown**: plausible mechanism named, but which of a few call sites is unconfirmed
+
+**High** — any of:
+
+- New contracts, migrations, or schema churn
+- Cross-cutting (shared kernel, many independent call sites)
+- No plausible mechanism (symptom only)
+- High regression surface: auth, **money movement** (balances, submit, fee math), infra — not display-only denomination or copy
+
+**Done:** one band, from the tie-break above.
+
+#### User value (`Low` | `Medium` | `High`)
+
+Kano: end-user reaction if shipped (not team urgency).
+
+| Kano | Score | Signals |
+|------|-------|---------|
+| **Must-be** broken, or **performance** for core / revenue / many users | High | core flow blocked, trust/money, strong product signal |
+| **Performance** or must-be pain for a subset | Medium | meaningful improvement, painful for some |
+| **Delighter** | Low | polish, internal-only, edge, nice-to-have |
+
+**Done:** one Kano category named and mapped to the score.
+
+#### Importance (`Low` | `Medium` | `High`)
+
+Team urgency (Linear priority, dates, incidents) — not Kano.
+
+- **High** — Urgent, incident, SLA, explicit blocking, overdue
+- **Medium** — High priority, or due this cycle
+- **Low** — Medium / Low / None, no date pressure
+
+#### ROI (`Low` | `Medium` | `High`)
+
+Value relative to complexity:
 
 | User value ↓ / Complexity → | Low | Medium | High |
 |------------------------------|-----|--------|------|
-| **High** | High | Medium | Low |
+| **High** | High | High | Low |
 | **Medium** | High | Medium | Low |
 | **Low** | Medium | Low | Low |
 
-Override the matrix in one sentence when context demands (e.g. compliance must-fix despite high complexity → note **Low ROI** but **High importance**).
+Override the matrix in one sentence when context demands (e.g. compliance must-fix despite high complexity → **Low ROI**, **High importance**).
+
+**Pickup** (pipeline Gate 1): Complexity **Low**, or Complexity **Medium** and ROI **High**. High complexity is never pickup.
 
 ### 4) Output
 
-Use the template below. Keep it **short** — bullets over paragraphs. The user should be able to tweak scores manually.
+Emit the full template. Short: bullets over paragraphs. Scores are recommendations the user can override.
+
+| AC | Verdict |
+|----|---------|
+| Explicit or Derived | `Proceed` |
+| Unclear | `Block — AC unclear` |
+
+Suggested next step is **Pick up now** when Verdict is Proceed and **Pickup** holds; otherwise spike/defer (or get a testable done-when if AC Unclear).
+
+**Done:** matching template emitted; Verdict follows the AC table; suggested next step follows Pickup.
 
 ## Output template — full triage
 
@@ -82,7 +136,7 @@ Use the template below. Keep it **short** — bullets over paragraphs. The user 
 
 **Link:** [url]
 **Status:** [status] · **Priority:** [priority or —]
-**Verdict:** Proceed
+**Verdict:** [Proceed | Block — AC unclear]
 
 ## Summary
 [2–3 sentences: what it is, whether it is ready to pick up, main risk.]
@@ -93,7 +147,7 @@ Use the template below. Keep it **short** — bullets over paragraphs. The user 
 |---|---|
 | Type | Feature / Bug / Chore / Unknown |
 | Clarity | Clear / Partial / Unclear — [one line why] |
-| Acceptance criteria | Yes / Partial / No — [one line] |
+| Acceptance criteria | Explicit / Derived / Unclear — [quote done-when, or what is missing] |
 | Reproducible | Yes / Maybe / No / N/A — [one line] |
 | Stack | Frontend / Backend / Fullstack / Unknown |
 | Repos (n) | [repo-a, repo-b] (2) — [certain / inferred] |
@@ -102,10 +156,11 @@ Use the template below. Keep it **short** — bullets over paragraphs. The user 
 
 | | |
 |---|---|
-| User value | Low / Medium / High |
+| User value | Low / Medium / High ([must-be / performance / delighter]) |
 | Complexity | Low / Medium / High |
 | Importance | Low / Medium / High |
 | **ROI** | **Low / Medium / High** |
+| Pickup | Yes / No |
 
 **ROI note:** [one sentence tying value to effort]
 
@@ -113,7 +168,7 @@ Use the template below. Keep it **short** — bullets over paragraphs. The user 
 - [missing repro, AC, owner, design, etc. — or "None"]
 
 ## Suggested next step
-[Pick up now / clarify with PM / spike / defer — one line]
+[Pick up now / get a testable done-when / spike / defer — one line]
 ```
 
 ## Output template — early exit
@@ -128,11 +183,3 @@ Use the template below. Keep it **short** — bullets over paragraphs. The user 
 
 **Status seen:** [status or error]
 ```
-
-## Rules
-
-1. **No implementation** — triage only.
-2. **No invented facts** — if the issue lacks detail, say so under **Gaps**; lower clarity and ROI confidence.
-3. **Bugs without repro** — cap complexity confidence; list what is needed to reproduce.
-4. **Do not over-search** — repo inference should be fast; 1–2 targeted searches max unless the user asks for deep investigation.
-5. **Scores are recommendations** — phrase so the user can override manually.
