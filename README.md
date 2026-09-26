@@ -38,7 +38,7 @@ The original flow from which I started. I ran, manually, one skill at a time unt
 
 | When to use it |
 |----------------|
-| You already know the work and do not want triage. Pass a feature or bug (or an existing plan file). It plans, uses isolated worktrees per repo, delivers each unit with block review and commit, then opens PRs. |
+| You already know the work and do not want triage. Pass a feature or bug (or an existing plan file). It plans, uses isolated worktrees per repo, delivers each unit with block review and commit, runs the repo's test, typecheck, and lint checks until they pass, then opens PRs. |
 
 ### `/bmo-linear-pipeline`
 

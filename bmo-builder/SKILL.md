@@ -1,6 +1,6 @@
 ---
 name: bmo-builder
-description: Builds a feature or bug end to end: plan, isolated worktrees, per-unit deliver with block review, commit, PRs.
+description: Builds a feature or bug end to end: plan, isolated worktrees, per-unit deliver with block review, commit, green checks, then PRs.
 disable-model-invocation: true
 argument-hint: "[feature or bug]"
 ---
@@ -193,19 +193,38 @@ This pass exists to catch issues that slip past per-block review, especially rep
 
 **Done for 4a:** Every affected repo has a final-diff verdict; actionable findings are fixed and committed.
 
-### 4b — Pull requests (`bmo-pr`)
+### 4b — Checks (gate before any PR)
 
-After the final quality check is green:
+Run this after 4a. [4c](#4c--pull-requests-bmo-pr) starts only when the done line below is met. No `git push` and no `gh pr create` in this step.
+
+For **each** affected repo, in that `WORKTREE_PATH`:
+
+1. Read the PR workflow and the package scripts it calls. The **checks** are the test, typecheck, and lint commands that workflow runs. When the workflow does not run one of those and the package script exists, include that script. Record every command.
+2. Run every recorded check in that worktree. A check is **green** when the command exits 0.
+
+When every recorded check is green on the committed `HEAD` of every affected worktree, go to 4c.
+
+When any check is red, the red set from this pass is the next implementation unit:
+
+1. Append `Un+1` to the plan file, using the plan's existing unit headings. **Scope in** is every check that exited non-zero on this pass, including the command output. **Verification (narrowest)** is those same commands, in the worktree they failed in, each exiting 0.
+2. Run [Phase 3](#phase-3--per-unit-delivery-loop) for that unit only: **3a → 3b → 3c → 3d**. Autopilot applies. Isolation still holds.
+3. Re-run each command that was red this pass on the new `HEAD`. All exit 0 → run this step again from the top (full check set). Any of them still red with the same test name or error → status `stopped`. Report the command and output. Leave that failure without another unit, and leave the PR unopened. A new test name or error is the next pass.
+
+**Done for 4b:** Every recorded check exited 0 on the committed `HEAD` of each affected `WORKTREE_PATH`. No PR exists yet for this run.
+
+### 4c — Pull requests (`bmo-pr`)
+
+After 4b is green:
 
 1. Read [`bmo-pr`](../bmo-pr/SKILL.md).
-2. **Per affected repo** (each `WORKTREE_PATH`): push branch, create or update PR (default base `main`). Reuse Phase 4c problem/fix/verification in the body. Footer `Refs [IDENTIFIER]` only when the identifier is an issue key. **Label `agent-built`** on every PR (`--label agent-built` on create; `--add-label agent-built` when updating).
+2. **Per affected repo** (each `WORKTREE_PATH`): push branch, create or update PR (default base `main`). Use the Problem, Fix, and Verification sections in the body. Footer `Refs [IDENTIFIER]` only when the identifier is an issue key. **Label `agent-built`** on every PR (`--label agent-built` on create; `--add-label agent-built` when updating).
 3. Record PR URL per repo in run context.
 
 If push or `gh` fails for a repo, report it in the summary. Do not fail silently.
 
-**Done for 4b:** Every affected repo has a PR URL or a recorded failure reason.
+**Done for 4c:** Every affected repo has a PR URL or a recorded failure reason. 4b was already green on the `HEAD` that was pushed.
 
-### 4c — Summary
+### 4d — Summary
 
 Output:
 
@@ -228,7 +247,7 @@ Output:
 [What we changed and why it resolves the problem. 2–4 bullets max.]
 
 ## Verification
-[Command(s) run and result.]
+[4b check commands and exit codes, per repo.]
 ```
 
 If the handoff included a triage verdict, append:
@@ -252,7 +271,7 @@ Set run status to `done`.
 | `bmo-step-deliver` | Commit only on explicit user ask or `continue` | **Autopilot:** 3d commits each completed unit after review fixes |
 | `bmo-commit` | Default: commit staged only; no `git add` | **Autopilot:** orchestrator may `git add` paths for the current unit before commit |
 | `bmo-step-planner` | Planning only | Unchanged. Still no code in Phase 1. |
-| `bmo-pr` | User invokes separately | **Autopilot:** Phase 4b push + PR per affected repo worktree |
+| `bmo-pr` | User invokes separately | **Autopilot:** Phase 4c push + PR per affected repo worktree, only after 4b is green |
 
 Single-unit plans: still run **3b → 3c → 3d** once, then Phase 4.
 
@@ -269,8 +288,10 @@ Multi-repo plans: commit **per git root** per unit; never commit repo B because 
 | Subagent unavailable / Task tool missing | Review blocks **sequentially** in the orchestrator using `bmo-block-reviewer`. Do not skip review. |
 | Plan revision needed mid-flight | Update plan file **Revision** section per `bmo-step-deliver`, restate scope, then continue current or next unit |
 | User interrupts with "stop" / "abort" | Halt; summarize done vs remaining units. Status `stopped` |
-| Final quality check finds issues | Fix, verify, and commit before Phase 4b PR creation |
-| PR push or `gh` fails | Report in 4b summary; other repos' PRs still proceed |
+| Final quality check finds issues | Fix, verify, and commit before the 4b checks |
+| A 4b check is red | Append one plan unit for the red set and run Phase 3 (3a–3d), then re-run 4b. Open the PR only after every recorded check exits 0 |
+| The same check failure remains after that unit's commit | Stop. Status `stopped`. Report the command and output. Leave the PR unopened |
+| PR push or `gh` fails | Report in the 4d summary; other repos' PRs still proceed |
 
 ---
 

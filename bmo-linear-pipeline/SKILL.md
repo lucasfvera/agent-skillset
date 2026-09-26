@@ -73,7 +73,7 @@ When Gate 1 passes, output this block **in chat** before handing off:
 
 ## Phase 2 — Build (`bmo-builder`)
 
-Read [`bmo-builder`](../bmo-builder/SKILL.md) from the first line and execute it to completion. Do not re-triage. Do not wait for another user message. Builder autopilot applies (plan → worktrees → per-unit deliver / block review / commit → PRs). The builder is not complete if any implementation edit landed in a main checkout.
+Read [`bmo-builder`](../bmo-builder/SKILL.md) from the first line and execute it to completion. Do not re-triage. Do not wait for another user message. Builder autopilot applies (plan → worktrees → per-unit deliver / block review / commit → checks green → PRs). The builder is not complete if any implementation edit landed in a main checkout.
 
 Pass this handoff as the builder's input:
 
