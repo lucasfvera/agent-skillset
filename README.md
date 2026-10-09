@@ -6,7 +6,7 @@ Cursor skills for how we plan work, ship code, open PRs, and close review loops.
 npx github:lucasfvera/agent-skillset
 ```
 
-Copies every `bmo-*` skill into `~/.cursor/skills/`.
+Copies every `bmo-*` skill into `~/.cursor/skills/` and the PR-checks hook into `~/.cursor/hooks/` (local `gh pr create` gate). Cloud has no hooks: `/bmo-builder` and `/bmo-pr` run the same **checks** from `hooks/pr-checks.md`.
 
 ## Manual Workflow
 
@@ -21,10 +21,11 @@ The original flow from which I started. I ran, manually, one skill at a time unt
 | `/bmo-block-reviewer` | You want a short, findings-first review of a diff (delivery block, PR slice, or named files) against BMO quality rules and the team learnings catalog. |
 | `/bmo-commit` | You want a conventional commit from what's already staged. Won't auto-stage, edit files, or run formatters. Infers monorepo scope from staged paths. |
 | `/bmo-document-html` | You want a self-contained HTML doc (architecture, migration, handoff) with diagrams, not another markdown file. |
+| `/bmo-feature-recorder` | You want a feature walk captured as PR stills (`Destination: pr`) or as a growth video clip for email or chat. |
 | `/bmo-git-stack-update-refs-push` | You have a local branch stack to rebase with `--update-refs`, wire to `origin/<branch>`, and publish with force-with-lease. |
 | `/bmo-integration-tests` | You need Roxom-style integration tests with real Postgres, RabbitMQ, and gRPC (tx, hermod, similar services). Uses the smallest real stack that proves the behavior. |
 | `/bmo-merge-conflicts` | You're mid-rebase with conflict markers. Default is suggestions only; it edits files when you ask it to resolve. |
-| `/bmo-pr` | You want to open or update a GitHub PR with a conventional title and a filled-out body (repo template or default sections). |
+| `/bmo-pr` | You want to open or update a GitHub PR with a conventional title and a filled-out body. On visual diffs, stills from `/bmo-feature-recorder` fill Screenshots. |
 | `/bmo-stack-prs` | You have a stacked branch line and need ordered PRs, pushes for out-of-sync heads, and missing PRs opened from git history alone. |
 | `/bmo-step-deliver` | You want work in reviewable slices: scope, verification commands, and a structured review digest. Stops after each unit until you say continue. |
 | `/bmo-step-planner` | The task is big or cross-cutting and you want a plan (U1, U2, …) written under `.cursor/plans` before anyone writes code. |

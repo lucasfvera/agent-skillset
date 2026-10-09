@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "./hooks/pr-checks.py",
+        "matcher": "gh\\s+pr\\s+create",
+        "failClosed": true,
+        "timeout": 30
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "./hooks/pr-checks.py",
+        "matcher": "Shell",
+        "timeout": 15
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 ---
 name: bmo-pr
-description: Opens or updates GitHub pull requests with conventional titles and a full PR body (repo template or default sections). Use when the user says /pr, asks to open a PR, update PR description after new commits, or target a base branch (e.g. main) with gh.
+description: Opens or updates a GitHub PR with a conventional title and full body. Visual diffs get stills from bmo-feature-recorder.
 disable-model-invocation: true
 ---
 
@@ -29,6 +29,36 @@ Produce a **conventional-commit-style title** and a **complete PR body**, then e
 5. **Push if needed**: if `HEAD` is not on the remote branch, `git push -u origin <branch>` (or the user’s equivalent). If push is **rejected (non-fast-forward)**, stop and explain: local and remote diverged—user should reconcile (merge/rebase/`--force-with-lease` only when appropriate). Do not silently force-push.
 
 6. **Rebase onto base** is optional: only if the user wants a linear history and you can resolve conflicts quickly; otherwise open/update the PR and let GitHub show mergeability.
+
+## Checks
+
+**checks** before `gh pr create`: [pr-checks.md](../hooks/pr-checks.md).
+
+## Visual
+
+From the commit log and the files the PR will include, write one line:
+
+- **yes** — pages, CSS, components, layout, or flags that change chrome
+- **no** — types, tests, formatters, API/config with no user-visible surface
+
+`Visual: yes — [surface]` or `Visual: no — [reason]`.
+
+If **no**: Screenshots section is `N/A`. Skip the recorder and [screenshots.md](screenshots.md).
+
+If **yes**: read [`bmo-feature-recorder`](../bmo-feature-recorder/SKILL.md) with this handoff, then read [screenshots.md](screenshots.md) and attach the stills on `gh pr create` / `gh pr edit`:
+
+```
+Destination: pr
+Slug: [branch-slug]
+Mode: before/after | implementation-only
+Auth: logged-in | logged-out | both
+Surfaces:
+- [path] — [control] — [expected state]
+```
+
+On recorder or upload **push back**, stop — no PR with an empty Screenshots section.
+
+**Done:** Visual line written; if yes, the published PR body shows attached images (or this skill stopped on push back).
 
 ## Title (`<type>: <subject>`)
 
@@ -69,7 +99,7 @@ gh pr create --base <base> --head <branch> \
   --body-file <path>
 ```
 
-Use **`--body-file`** for multi-line bodies (write a temp file, pass it, then **delete** the temp file unless the user asked to keep it). If `--body-file` is awkward, `-F` / heredoc is fine.
+Use **`--body-file`** for multi-line bodies (write a temp file, pass it, then **delete** the temp file unless the user asked to keep it). If `--body-file` is awkward, `-F` / heredoc is fine. Visual PRs add one `--attach` per still (see [screenshots.md](screenshots.md)).
 
 Reply with the **canonical PR URL** from `gh` output.
 
@@ -92,6 +122,8 @@ Default **assign the author**: **`--assignee @me`** on create; on edit use **`--
 
 - [ ] Fetched; log from `origin/<base>..HEAD` reviewed
 - [ ] No duplicate open PR for same head/base (unless user asked to replace)
+- [ ] **checks** green on this `HEAD` ([pr-checks.md](../hooks/pr-checks.md))
 - [ ] Title conventional; body filled from template or default sections
 - [ ] How-to-test grounded in this repo
+- [ ] Visual line written; Screenshots is `N/A` or attached images
 - [ ] `gh pr create` or `gh pr edit` succeeded **or** fallback markdown written

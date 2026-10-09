@@ -1,7 +1,5 @@
 # Sentiless — record branch only
 
-Read this after the recording decision is **yes**. Do not load it on a types-only / no-clip run.
-
 **Sentiless** is `~/roxom/internal-sentinel` on branch `sentiless`. Passkey + `E2E_USER_EMAIL` live in its gitignored `.env`. Never print emails, passkeys, or `.env` values.
 
 When writing or adapting a recorder, open this script as the walk to copy, then read [cursor-overlay.md](cursor-overlay.md):
@@ -12,7 +10,7 @@ Do not paste that file into chat.
 
 ## Push back before faking a take
 
-If the feature is visual and a clip would help, but Sentiless, passkey, or the local app is missing: **push back**. Refuse to fake a QA recording or skip auth. Ask the user to enroll or to skip the clip. Then stop this file and return to the HTML step with no Demo video.
+If the feature is visual and a clip would help, but Sentiless, passkey, or the local app is missing: **push back**. Refuse to fake a QA recording or skip auth. Ask the user to enroll or to skip the clip. Then stop this file — the calling skill decides what happens next. No fake take.
 
 ## Verify (do not print secrets)
 
@@ -44,12 +42,6 @@ Exercise the actual user surfaces, not one control. For a toggle that lives in t
 
 Inject a **cursor overlay**; drive `page.mouse.move` then click; pause so clicks are readable (see [cursor-overlay.md](cursor-overlay.md)).
 
-Write artifacts next to the brief:
-
-- `demo/<slug>.webm`
-- stills for each state shown in the Demo tab
-- `demo/take.json` — origins used (no emails), each surface/control, boolean clicked/opened, `recordedAt`
-
-Point the Demo tab at those files with relative paths (`demo/...`).
+Write a `take.json` with origins used (no emails), each surface/control as a boolean clicked/opened, and `recordedAt`. Artifact paths are owned by the calling skill.
 
 **Completion criterion:** `take.json` exists and every intended click is a true/false field (false is allowed; omitting the field is not) **or** the user was told to enroll/skip — not a silent skip.

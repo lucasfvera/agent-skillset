@@ -195,12 +195,11 @@ This pass exists to catch issues that slip past per-block review, especially rep
 
 ### 4b — Checks (gate before any PR)
 
-Run this after 4a. [4c](#4c--pull-requests-bmo-pr) starts only when the done line below is met. No `git push` and no `gh pr create` in this step.
+Run this after 4a. [4c](#4c--pull-requests-bmo-pr) starts only when the done line below is met. This step records and runs **checks**; 4c is the push and PR step.
 
 For **each** affected repo, in that `WORKTREE_PATH`:
 
-1. Read the PR workflow and the package scripts it calls. The **checks** are the test, typecheck, and lint commands that workflow runs. When the workflow does not run one of those and the package script exists, include that script. Record every command.
-2. Run every recorded check in that worktree. A check is **green** when the command exits 0.
+1. Record and run **checks** per [pr-checks.md](../hooks/pr-checks.md).
 
 When every recorded check is green on the committed `HEAD` of every affected worktree, go to 4c.
 

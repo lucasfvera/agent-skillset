@@ -29,6 +29,14 @@ Read [sentiless.md](sentiless.md) **now**, before any Playwright. It owns Sentil
 
 When writing or adapting a recorder (not when only running an existing script), also read [cursor-overlay.md](cursor-overlay.md) before the first `page.mouse` call.
 
+Write artifacts next to the brief:
+
+- `demo/<slug>.webm`
+- stills for each state shown in the Demo tab
+- `demo/take.json`
+
+Point the Demo tab at those files with relative paths (`demo/...`).
+
 **Completion criterion:** either a real take (`take.json` listing every surface clicked) **or** an explicit **push back**. A silent skip is a failed step. If the outcome is push back, continue to step 3 with no Demo clip — never a fake video, never skipped auth.
 
 ## 3. Write the HTML
