@@ -1,10 +1,10 @@
 ---
 name: bmo-commit
-description: Creates a conventional commit from the index only—default is staged changes only; aborts with no commit if nothing is staged. Never auto-stages unstaged work, edits files, or runs formatters. Stages paths only when the user explicitly asks to stage. Detects workspace scope from paths in Yarn/Nx/Turborepo-style monorepos (apps/*, packages/*). Use when the user says commit, commit this, /bmo-commit, save changes with a message, or attaches this skill. Do not infer permission to commit a second git root because a prior message committed another repo—confirm intent matches staged paths (see bmo-step-deliver).
+description: Creates a git commit strictly from staged changes without editing files, matching the repository's commit style.
 disable-model-invocation: true
 ---
 
-# Commit (conventional)
+# Commit
 
 ## Default behavior (hard gate)
 
@@ -48,9 +48,13 @@ After any `git add`, re-run `git diff --cached` and confirm the index is non-emp
 1. **Confirm intent:** Only run when the user asked to **create a commit** (or used `/bmo-commit` / `continue` per **bmo-step-deliver** for the **same** repo’s completed slice). If they asked to commit **only** a named part of the monorepo or a **different** git root, ensure staged files match that scope—**do not** stage or commit other repos by inference. See **bmo-step-deliver** (Git commits: explicit approval per repository).
 2. **Stage (only if requested):** If the user asked to stage specific paths or a scope, run `git add` for those paths only. Otherwise **skip staging entirely** — do not compensate for an empty index by adding files.
 3. **Index check (required):** Run `git diff --cached --stat`. If empty, **abort**: do not run `git commit`. Tell the user no commit was created, that only staged changes are committed by default, and they should stage files (or ask you to stage named paths) and retry.
-4. Inspect staged changes: `git diff --cached`, names, and rough intent (feat/fix/test/chore/etc.)—**read-only**; do not “improve” the diff.
-5. **Infer `<type>`** from branch name when it matches `feat/`, `fix/`, `chore/`, etc.; otherwise choose from the list below from the actual diff.
-6. **Infer `<scope>`** using [Monorepo scope](#monorepo-scope) rules when paths clearly belong to one workspace; omit scope when unclear or overly broad.
+4. Inspect staged changes: `git diff --cached`, names, and rough intent (`feat`/`fix`/`test`/`chore`/etc.)—**read-only**; do not “improve” the diff.
+5. **Detect the repository's commit convention** in order:
+   1. Explicit user instruction in the prompt.
+   2. Documented repo rules or tooling (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`, `commitlint` / Husky config).
+   3. Dominant subject style in `git log -n 20 --oneline` (e.g. `<type>(<scope>): <subject>` vs bare imperative `<Subject>`).
+   4. Default when history or docs do not specify another style: **Conventional Commits** (`<type>[optional (<scope>)]: <subject>`).
+6. When using Conventional Commits, **infer `<type>`** from the branch name (`feat/`, `fix/`, `chore/`, etc.) or diff, and **infer `<scope>`** using [Monorepo scope](#monorepo-scope) rules when paths clearly belong to one workspace (omit scope when unclear or overly broad). When the repo uses bare imperative subjects, omit `<type>` and `<scope>` and start the subject with a capital imperative verb (`Add`, `Fix`, `Update`, `Remove`).
 7. Compose the message per [Format](#format), then run `git commit` with that message.
 
 ## Monorepo scope
@@ -87,14 +91,14 @@ If unsure between folder name and `package.json` `name` (e.g. `@org/foo` → sco
 ## Format
 
 ```
-<type>(<scope>): <subject>
+<type>(<scope>): <subject>   # or bare <Subject> when the repo omits conventional prefixes
 
 <body>
 
 <footer>
 ```
 
-- **Subject line:** imperative, present tense, capital start, no trailing period; **≤ 50 characters** (including `(scope)` if present).
+- **Subject line:** imperative, present tense, capital start, no trailing period; **≤ 50 characters** (including `(scope)` if present). Omit `<type>(<scope>):` when step 5 detected bare imperative commits in this repo.
 - **Body:** wrap at **72** chars; two short paragraphs—**why** first, **what** second; no implementation trivia.
 - **Footer:** issue/PR reference from branch name if present (`Closes #123`, `Refs #456`); else omit. **BREAKING CHANGE:** in footer when applicable.
 

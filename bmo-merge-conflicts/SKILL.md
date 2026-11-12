@@ -1,6 +1,6 @@
 ---
 name: bmo-merge-conflicts
-description: Analyzes git merge conflicts during rebase (suggestions only by default). HEAD is upstream/main; incoming is replayed commits. Produces per-file, per-conflict guidance; favors main business logic while preserving notification/Hermod changes. Use when the user has rebase conflicts or conflict markers. Only edits files when the user explicitly asks to resolve or fix conflicts.
+description: Analyzes git rebase merge conflicts side-by-side (suggestions only by default; resolves files only on explicit ask).
 disable-model-invocation: true
 ---
 

@@ -1,97 +1,67 @@
-# Extraction rules — PR feedback to guidelines
+# Extraction rules — PR feedback to domain & tier rules
 
 ## Goal
 
-Produce **durable review rules** a future `bmo-block-reviewer` pass can apply without re-reading the original thread.
+Distill raw PR review threads into **one-line, positive-target rules** classified by **domain** (`core | frontend | backend | database | testing`) and **tier** (`issue | style`).
 
-## Abstraction ladder
+## 1. Domain routing (`domain`)
 
-| Thread content | Extract as |
-|----------------|------------|
-| "Use `===` here" | Enforce strict equality in comparisons |
-| "Extract this to a helper" | Extract reusable logic when it improves testability or removes duplication |
-| "This test should use getByRole" | Prefer accessible queries (`getByRole`) over `getByTestId` when a role exists |
-| "Why is this guard here?" | Avoid defensive checks for states that cannot occur in this path |
-| "Rename to match sibling file" | Match established patterns in sibling files before inventing new structure |
-| "Nit: extra blank line" | **Skip** — too local; not a catalog learning |
-| "Fix the typo in the comment" | **Skip** unless it reveals a standing doc rule |
+Pick the narrowest file layer the rule governs:
 
-## Rules
+| Domain | Target file in `bmo-block-reviewer` | Triggers / scope |
+|--------|-------------------------------------|------------------|
+| `core` | `SKILL.md` | Universal TypeScript typing, strict equality, error narrowing, decimal math, secret logging, general DRY/helper/comment hygiene |
+| `frontend` | `references/frontend.md` | UI components, client hooks, form/view state, event handlers vs effects, DOM structure, CSS/design tokens |
+| `backend` | `references/backend.md` | HTTP/gRPC/message handlers, routes, middleware, service boundaries, HTTP/auth status mapping, wire schemas/protos, codegen |
+| `database` | `references/database.md` | SQL queries, repositories/stores, DB transactions/locks, `CHECK` constraints, migrations |
+| `testing` | `references/testing.md` | Unit, component, and integration specs (`*.test.*`, `*.spec.*`), fixtures, mocks, query priority, suite harnesses/ports |
 
-1. **Source is inbox captures**, not live GitHub, unless recovery fetch is needed.
-2. **One thread → zero or one learning.** Multiple distinct rules in one comment → split into separate learnings with different `id`s.
-3. **Imperative voice.** "Prefer X over Y when Z" not "Reviewer wanted X".
-4. **No quotes in catalog.** Inbox captures may hold verbatim comments; `guideline` and `rationale` in the catalog must not paste them.
-5. **No paths in guidelines.** `sources` holds `owner/repo#number` for traceability only.
-6. **Resolution informs rationale, not wording.** A `Keeping as-is` thread can still yield a learning ("Do not add guards for X because Y") when it encodes a standing preference.
-7. **Dismissed nitpicks:** extract only when the dismissal explains a **repeatable** bar (e.g. "we don't enforce import order in test files").
-8. **Cross-session dedupe:** the same abstract rule from multiple pending captures merges into one learning with combined `sources`.
+## 2. Severity tier (`tier`)
 
-## Category guide
+| Tier | Meaning | Examples |
+|------|---------|----------|
+| `issue` | Violating the rule causes wrong runtime output, broken wire/DB contracts, wrong HTTP/auth status codes, leaked secrets or raw DB errors, held DB transactions/locks, hot-path latency, parallel test port races, or vacuous/flaky tests | `auth-identity-is-401`, `validate-before-transaction`, `log-presence-not-secrets`, `test-unit-owned-contract`, `no-settimeout-sleeps` |
+| `style` | Code runs accurately and performs fine; the rule encodes structure, file layout, helper granularity, DRY conventions, comments, or test readability | `single-return-formatters`, `avoid-thin-wrappers`, `one-handler-per-file`, `test-aaa-pattern`, `prefer-design-tokens` |
 
-| Category | Examples |
-|----------|----------|
-| `typing` | `any`, assertions, strict equality, branded IDs |
-| `tests` | query priority, user-event, fixtures, mock boundaries |
-| `architecture` | layer boundaries, handler vs service, file placement |
-| `patterns` | reuse helpers, DRY, colocation, sibling-file consistency |
-| `style` | naming, comments worth keeping, magic strings |
-| `performance` | latency on hot paths, unnecessary awaits |
-| `other` | anything that does not fit above |
+## 3. Wording rules
+
+1. **Prompt the positive target first:** Lead with what to write (`Compare values with strict equality...`), pairing a brief `never`/`rather than` clause only as a guardrail.
+2. **One line (`rule`):** `<Positive imperative>; <one-clause why or contrast>.`
+3. **No file paths or verbatim PR quotes:** Keep rules portable across repositories.
+4. **Dismissed threads count when they encode a standing rule:** A `Keeping as-is` resolution that states a repeatable boundary preference ("Keep pure internal mappers free of try/catch; handle errors at the I/O boundary") yields a valid rule.
+
+## 4. When to skip
+
+- One-off factual fixes (typos, wrong enum literal in one feature).
+- Feedback tied to a temporary feature flag or a single file's legacy quirk.
+- Rules already covered by an existing ID in [`ledger.md`](../ledger.md) (append the PR to `sources` instead).
 
 ## Examples
 
-### Thread
+### Example A — `tier: issue`, `domain: database`
 
-> Reviewer: "Please use strict equality"
-> Resolution: Valid. Replaced `==` with `===`.
-
-### Learning
+> Reviewer: "Don't open `db.transaction` before checking if the request body is valid."
+> Resolution: Valid. Moved validation above `db.transaction`.
 
 ```yaml
-id: strict-equality
-category: typing
-guideline: Always use strict equality when comparing values.
-rationale: Loose equality hides type coercion bugs.
-sources: [roxom-markets/roxtopia#833]
-promoted: false
+id: validate-before-transaction
+domain: database
+tier: issue
+rule: Run format and precondition validation before opening a database transaction so invalid requests never acquire or hold scarce connections.
+sources: [acme/payments#104]
+status: promoted
 ```
 
-### Thread
+### Example B — `tier: style`, `domain: core`
 
-> Reviewer: "Can we use getByRole here? The button has a name."
-> Resolution: Valid. Updated query.
-
-### Learning
+> Reviewer: "Can we assign the result in each branch and have a single `return` at the bottom of this formatter?"
+> Resolution: Valid. Refactored to single return.
 
 ```yaml
-id: test-accessible-queries
-category: tests
-guideline: Prefer getByRole (and other accessible queries) before getByTestId when the element exposes role and name.
-rationale: Tests should reflect how users find elements and catch accessibility regressions.
-sources: [roxom-markets/roxtopia#833]
-promoted: false
+id: single-return-formatters
+domain: core
+tier: style
+rule: Structure pure formatter functions around one assignment path and a single return at the end.
+sources: [acme/web#412]
+status: candidate
 ```
-
-### Thread (dismissed)
-
-> Reviewer: "Add a try/catch around this internal mapper call."
-> Resolution: Keeping as-is. Mapper is pure; callers own error boundaries.
-
-### Learning
-
-```yaml
-id: no-defensive-internal-wrap
-category: patterns
-guideline: Do not wrap pure internal helpers in try/catch; handle errors at the boundary that owns I/O or user-facing failure.
-rationale: Extra catches obscure the real failure site and duplicate handling.
-sources: [roxom-markets/roxtarsverse#120]
-promoted: false
-```
-
-## When to skip
-
-- One-off factual corrections ("wrong enum value for this constant").
-- Typos, formatting-only requests, or single-use naming preferences.
-- Feedback that only applies to one unreleased feature flag state.
-- Duplicates of an existing catalog entry (merge sources instead).

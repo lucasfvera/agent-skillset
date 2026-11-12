@@ -1,239 +1,150 @@
-# Integration test reference
+# Integration test blueprints
 
-Repo-specific paths, skeletons, and tier details for `bmo-integration-tests`.
+Disclosed patterns for [`bmo-integration-tests`](SKILL.md). Adapt idioms to the repository's language, test runner, ORM/SQL client, and broker SDK.
 
 ---
 
-## Roxtarsverse
+## 1. Tiered harness factory
 
-**Primary example app:** `apps/tx`
-
-### Key files
-
-| Path | Role |
-|------|------|
-| `apps/tx/jest.config.js` | Default: `globalSetup`/`globalTeardown`, `maxWorkers: 4` |
-| `apps/tx/jest.setup.ts` | Creates `test_tx_template`, runs migrations once |
-| `apps/tx/jest.teardown.ts` | Drops `test_tx_*` databases |
-| `apps/tx/tests/setup.ts` | `setupDatabase`, `dropDatabase`, clone from template |
-| `apps/tx/tests/components.ts` | `createTestComponents`, `stopTestComponents`, `TEST_DB_PREFIX` |
-| `apps/tx/tests/constants/configs.ts` | `TEST_CONFIGS` — `{ dbName, grpcPort }` per suite |
-| `apps/tx/tests/mocks/data/instruments.ts` | `SAMPLE_INSTRUMENT_IDS`, `SAMPLE_NETWORKS` |
-| `apps/tx/tests/integration/helpers/internalTransferHandlerContext.ts` | Domain harness (stacks, seeds, spy) |
-| `apps/tx/tests/integration/flows/internalTransferNotifications.integration.test.ts` | Producer notification spec |
-| `libs/waitUntil/index.ts` | Sync condition poll (100ms, 10s timeout) |
-
-### `createTestComponents` behavior
-
-- **Real:** `logger`, `server`, `grpc`, `rabbitmq`, `pg`, `redis`, `lockManager`, …
-- **Mocked externals:** `fireblocks`, `gayway`, `instruments`, `pricetrox`, `yuta`, `trm`, `tribunal`, `unleash`, `activity`
-- DB: `test_tx_${databaseName}` cloned from template
-- gRPC: `createGrpcComponent({ host: '127.0.0.1', port: grpcPort })` when port set
-- Rabbit: real broker; optional `rabbitVHost` creates isolated vHost via Management API (`:15672`)
-
-### Harness skeleton (tx RPC + Hermod producer)
+Keep the default harness fast (DB + core dependencies) and opt into transport or broker wiring only in suites that exercise those boundaries:
 
 ```typescript
-// tests/constants/configs.ts — add entry
-myFeatureNotifications: { dbName: 'my_feature_notif', grpcPort: 50069 },
-
-// tests/integration/helpers/myFeatureContext.ts
-export async function createMyFeatureNotificationStack(config: {
+export interface TestHarnessOptions {
   databaseName: string;
-  grpcPort: number;
-}): Promise<MyFeatureNotificationStack> {
-  const testComponents = await createTestComponents(config);
-  // ... initRepositories, services ...
+  enableRpcServer?: boolean;
+  brokerNamespace?: string; // vHost, topic prefix, or queue namespace
+}
 
-  testComponents.rabbitmq.setClientRoutes([
-    { name: RabbitClients.HERMOD, mode: 'pub', queue: RabbitEvents.HERMOD.CREATE_NOTIFICATION },
-  ]);
-  testComponents.rabbitmq.client = await testComponents.rabbitmq.setClientRoutes(/* ... */).createRouter();
-  const publishSpy = jest.spyOn(testComponents.rabbitmq.client!, 'publish');
+export async function createTestHarness(opts: TestHarnessOptions) {
+  const db = await cloneOrMigrateTestDb(opts.databaseName);
 
-  const userEventsService = createUserEventsService({ /* real chain */ });
-  // rebuild service with real userEventsService
-  return { testComponents, publishSpy, /* handlers */ };
+  // Stub only external third-party boundaries the service does not own
+  const externalGateway = createExternalGatewayStub();
+
+  const broker = opts.brokerNamespace
+    ? await startRealBrokerClient({ namespace: opts.brokerNamespace })
+    : createNoopBrokerStub();
+
+  const repos = createRepositories(db);
+  const services = createServices({ repos, broker, externalGateway });
+
+  const rpc = opts.enableRpcServer
+    ? await startRpcServerAndClient({ host: '127.0.0.1', port: 0, services }) // port 0 = ephemeral
+    : undefined;
+
+  return {
+    db,
+    broker,
+    rpc,
+    repos,
+    services,
+    externalGateway,
+    async stop() {
+      await rpc?.close();
+      await broker.close();
+      await db.destroyAndDrop();
+    },
+  };
 }
 ```
 
-### Spec skeleton (tx)
+### Key invariants
+
+- **Ephemeral ports (`port: 0`)** eliminate `EADDRINUSE` across parallel workers; read the bound port from the server listener and pass it to the test client.
+- **Explicit teardown order:** stop ingress servers and queue consumers **before** closing broker channels or dropping the database so in-flight handlers do not throw post-test connection errors.
+
+---
+
+## 2. Database isolation strategies
+
+Pick the strategy matching the repo's existing tooling (check existing suites first):
+
+| Strategy | Best when | Parallel safety | Caveat |
+|----------|-----------|-----------------|--------|
+| **Template DB clone** (`CREATE DATABASE test_x TEMPLATE test_template`) | Postgres / SQL suites with many migrations | High (unique DB name per suite) | Global setup must migrate `test_template` once before workers fork; terminate connections before `CLONE`/`DROP` |
+| **Per-suite schema** (`search_path = suite_<id>`) | Single shared Postgres instance without superuser `CREATEDB` | High | Ensure queries do not hardcode `public.` |
+| **Testcontainers** (per-worker or shared container + per-suite DB) | Docker available in local + CI | High | Reuse container across suites in one run; isolate via DB/schema inside it |
+| **Per-test transaction rollback** | Fast repository-only tests on a single DB connection | High | Cannot test explicit `COMMIT`/`ROLLBACK` handling or cross-connection visibility (HTTP/RPC server using a pool) |
+
+**Resetting between tests (`beforeEach`):**
+
+- Truncate `RESTART IDENTITY CASCADE` or delete in reverse foreign-key order.
+- Re-apply default stub behaviors immediately after `clearAllMocks()`.
+
+---
+
+## 3. Broker & async event patterns
+
+### Bounded condition polling (`waitUntil`)
+
+Never assert fire-and-forget side effects synchronously after the ingress call returns, and never coordinate tests with fixed `sleep(500)` delays:
 
 ```typescript
-const { dbName, grpcPort } = TEST_CONFIGS.INTEGRATION.FLOWS.myFeatureNotifications;
+export async function waitUntil<T>(
+  probe: () => T | undefined | false | Promise<T | undefined | false>,
+  { timeoutMs = 5_000, intervalMs = 50 } = {},
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = await probe();
+    if (value) return value;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error(`waitUntil timed out after ${timeoutMs}ms`);
+}
+```
 
-describe('my feature Hermod notifications (integration)', () => {
-  let stack: MyFeatureNotificationStack;
+### Pattern A — Producer boundary (service publishes event/command)
 
-  beforeAll(async () => {
-    stack = await createMyFeatureNotificationStack({ databaseName: dbName, grpcPort });
-  }, 60_000);
+Wire the real domain service and real serialization/publisher layer, then spy or capture at the **last in-process broker client method** before network I/O (or bind an ephemeral test queue to the real exchange):
 
-  afterAll(async () => {
-    await stopTestComponents(stack.testComponents);
-    await dropDatabase(`${TEST_DB_PREFIX}${dbName}`);
-  }, 30_000);
+```typescript
+const publishSpy = vi.spyOn(harness.broker, 'publish');
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    jest.spyOn(stack.testComponents.unleash, 'isEnabled').mockReturnValue(true);
-    applyDefaultPricetroxMocks(stack.testComponents);
-    await resetMyFeatureTables(stack.testComponents.pg);
-    await seedMyFeatureScenario(stack);
-  });
+await harness.rpc!.client.transferFunds({ fromAccountId, toAccountId, amountCents: 25_00 });
 
-  it('publishes expected Hermod message', async () => {
-    const result = await handler(buildRabbitMsg());
-    expect(result.error).toBe(false);
-
-    await waitUntil(() => Boolean(findHermodPublish(stack.publishSpy, { userId, direction: 'sent' })));
-    expect(findHermodPublish(stack.publishSpy, { userId, direction: 'sent' })).toEqual([/* contract */]);
-  });
+const published = await waitUntil(() =>
+  findPublishedEvent(publishSpy, { topic: 'ledger.transfer.completed', accountId: fromAccountId }),
+);
+expect(published).toMatchObject({
+  eventVersion: 1,
+  accountId: fromAccountId,
+  amountCents: 25_00,
 });
 ```
 
-### gRPC skeleton (tx)
+- Encapsulate call matching in a typed helper (`findPublishedEvent`) rather than indexing `publishSpy.mock.calls[0][2]`, so unrelated telemetry or ordering changes do not make assertions brittle.
 
-See `apps/tx/tests/integration/grpc/tx/getLimit.test.ts`:
+### Pattern B — Consumer boundary (service consumes queue/stream)
 
-- `createTestComponents({ databaseName, grpcPort })`
-- Register handler via `createTypedService` / `grpcRoutes`
-- `grpc.start()` in `beforeAll`
-- Connect with generated `*ServiceClient` + `ChannelCredentials.createInsecure()`
+1. Boot the real consumer loop against an isolated queue/topic namespace.
+2. Wait until the consumer subscription is active before publishing the test message.
+3. Publish a schema-valid (or intentionally malformed, for DLQ/poison-message tests) payload.
+4. Poll with `waitUntil` until the persisted DB state or ack/DLQ metric settles.
+5. When asserting downstream fan-out topics, open a **dedicated probe channel/consumer** separate from the service's worker channel.
 
-### Run commands (tx)
+### Cross-service contract rule
 
-```bash
-yarn --cwd "/Users/lucasferreyravera/roxom/roxtarsverse" workspace tx test tests/integration/flows/myFeature.integration.test.ts --runInBand
-yarn --cwd "/Users/lucasferreyravera/roxom/roxtarsverse" workspace tx test:unit          # no Postgres
-yarn --cwd "/Users/lucasferreyravera/roxom/roxtarsverse" workspace tx test:grpc-handlers # mocked, no DB
-```
+Avoid booting Service A and Service B in the same integration suite unless testing a dedicated end-to-end environment:
 
-### tx pitfalls
-
-- Port collisions in `TEST_CONFIGS` → `EADDRINUSE`; assign unique ports or `--runInBand`
-- Template clone races → `unique_violation`; serial run or ensure teardown
-- `jest.clearAllMocks()` clears call history but keeps spies — re-apply `mockReturnValue`
-- `integration/grpcHandlers/` is **mocked**; real gRPC is under `integration/grpc/`
-- `TEST_DB_PREFIX` is `test_tx_` — use `${TEST_DB_PREFIX}${dbName}` in `dropDatabase`
+- **Service A integration test** proves the **producer boundary** against the shared schema/proto/OpenAPI contract.
+- **Service B integration test** feeds that exact contract shape into its **consumer boundary** and proves persistence + downstream effects.
 
 ---
 
-## Hermod
+## 4. Bootstrapping a repo with no integration harness
 
-### Key files
+1. Document required local services and defaults in `.env.example` / `docker-compose.test.yml` (or wire Testcontainers).
+2. Add a dedicated runner target (e.g. `test:integration`) separate from fast unit tests so unit runs stay zero-infra.
+3. Create global/suite DB migration bootstrap + `createTestHarness` with minimal defaults.
+4. Add shared seed builders and `waitUntil` under `tests/integration/helpers/`.
+5. Name specs clearly (`*.integration.test.*` / `*_integration_test.*`) so CI and developers can target them explicitly.
 
-| Path | Role |
-|------|------|
-| `jest.config.js` | Projects: `unit` \| `integration` |
-| `jest.setup.ts` / `jest.teardown.ts` | `test_hermod_template` lifecycle |
-| `tests/setup.ts` | Clone/drop per suite |
-| `tests/helpers/hermodTestApp/createHermodTestApp.ts` | Tiered app harness |
-| `tests/helpers/hermodTestApp/rabbitManagement.ts` | vHost via Management API |
-| `tests/helpers/waitUntil.ts` | Async poll returning `T \| undefined` |
-| `tests/integration/notifications.integration.test.ts` | DB tier |
-| `tests/integration/notifications.grpc.integration.test.ts` | gRPC tier |
-| `tests/integration/notifications.rabbit.integration.test.ts` | Rabbit consumer tier |
+## Pre-PR checklist
 
-### `createHermodTestApp` tiers
-
-| Config | Boots |
-|--------|-------|
-| `{ databaseName }` | Real PG + full `AppContainer`; stubs redis/rabbit/server/grpc |
-| `{ databaseName, grpcPort }` | PG + real gRPC + client; stubs redis/rabbit/server |
-| `{ databaseName, rabbitVHost }` | PG + real Rabbit + Redis + `main()` full wiring |
-
-Env snapshot/restore on stop. Always call `stopHermodTestApp(testApp)` in `afterAll`.
-
-### Rabbit consumer helpers (from hermod rabbit suite)
-
-- `waitForQueueConsumer(channel, queueName)`
-- `waitForQueueDrain(channel, queueName)`
-- `createTopicProbe(connection, routingKey)`
-- `waitForTopicMessage(probeChannel)`
-- `jest.spyOn(rabbitmq.client, 'publishToTopic')` for outbound fan-out
-
-Use a **second channel** for topic probes — consumer channel stays busy.
-
-### Spec skeleton (hermod DB)
-
-```typescript
-describe('notifications (integration)', () => {
-  let testApp: HermodTestApp;
-
-  beforeAll(async () => {
-    testApp = await createHermodTestApp({ databaseName: 'notifications' });
-  }, 60_000);
-
-  afterAll(async () => {
-    await stopHermodTestApp(testApp);
-  }, 30_000);
-
-  beforeEach(async () => {
-    await testApp.appContainer.components.pg.queryWithoutTransaction(
-      'DELETE FROM user_notification_events; DELETE FROM user_notifications;'
-    );
-  });
-
-  it('persists notification', async () => {
-    const tx = await testApp.appContainer.components.pg.startTransaction();
-    const result = await testApp.appContainer.services.notificationsService.createNotification(/* ... */, tx);
-    expect(result.error).toBe(false);
-    await tx.commit();
-    // SQL assert
-  });
-});
-```
-
-### Run commands (hermod)
-
-```bash
-yarn --cwd "/Users/lucasferreyravera/roxom/hermod" test:integration --runInBand tests/integration/notifications.rabbit.integration.test.ts
-```
-
-**Note:** `yarn test:integration` without a path also matches `tests/unit/**` — always pass an explicit file.
-
-### hermod pitfalls
-
-- Rabbit tier needs Rabbit **management plugin** (port 15672) for vHost creation
-- `jest.resetModules()` + dynamic import required so env mutations apply before init
-- Malformed queue messages: assert no DB rows + no outbound publish after short sleep
-
----
-
-## Adopting in a new repo
-
-1. **Find or create** `tests/env/.env.example` with `DATABASE_URL`, `RABBITMQ_URL`, `GRPC_*`.
-2. **Add** `jest.setup.ts` / `jest.teardown.ts` with template DB + migrations (copy tx or hermod).
-3. **Add** `tests/setup.ts` with `setupDatabase` / `dropDatabase` / `buildDatabaseUrl`.
-4. **Add** `createTestComponents` or `create*TestApp`:
-   - Real: pg, rabbitmq, grpc (as needed)
-   - Mock: every external adapter the service calls
-5. **Register** unique `databaseName` (+ port/vHost) per suite.
-6. **Place specs** under `tests/integration/` with `*.integration.test.ts` suffix.
-7. **Document** prerequisites in app `README.md`.
-
-**Producer vs consumer:**
-
-- Service **publishes** to Hermod (tx, roxtars, …) → spy `publish`, register Hermod client route.
-- Service **consumes** from Rabbit (hermod) → boot `main()`, publish to queue, drain, assert DB + optional topic probe.
-
----
-
-## Producer ↔ consumer cross-service tests
-
-For tx → hermod flows, **do not** run both services in one Jest suite unless explicitly required.
-
-**Preferred:** tx integration test asserts **producer boundary** (`publish` spy with `Notification.Types.*` contract). hermod integration test asserts **consumer boundary** (queue → DB → topic). Contract source: `roxtarsverse/docs/csv-hermod-notification-mapping.md` and `@roxom-markets/schemas` `Notification` types.
-
----
-
-## Checklist before opening PR
-
-- [ ] `tests/env/.env.example` documents new env vars (if any)
-- [ ] Unique `dbName` / `grpcPort` / `rabbitVHost` registered
-- [ ] `beforeEach` isolation (truncate or re-seed)
-- [ ] `afterAll` stops components and drops DB
-- [ ] Targeted test run with `--runInBand` attached to PR test plan
-- [ ] No `any` in new assertions; named helpers for Rabbit tuple lookup
-- [ ] Harness docstrings explain minimal vs extended stack
+- [ ] `.env.example` / Compose / Testcontainers config covers any new infra env vars
+- [ ] Unique DB/schema, ephemeral port, and isolated queue/topic namespace per suite
+- [ ] `beforeEach` resets state and re-applies default external-stub return values
+- [ ] `afterAll` stops servers/consumers before closing broker/DB connections
+- [ ] Async side effects synchronized with bounded `waitUntil` (no bare timer sleeps)
+- [ ] No `any` in fixtures or assertions; named helpers for broker payload lookup

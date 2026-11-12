@@ -8,7 +8,7 @@
 
 **Playgrounds / two-way interaction thread:** [x.com/trq212/status/2017024445244924382](https://x.com/trq212/status/2017024445244924382)
 
-The bullets below **paraphrase** the article (no images required for the skill; the piece mentions a screenshot of Claude using Unicode to fake color in Markdown—that is illustrative only).
+The bullets below **paraphrase** the article (no images required for the skill; the piece mentions a screenshot of a model using Unicode to fake color in Markdown—that is illustrative only).
 
 ### Why HTML (per article)
 
@@ -18,9 +18,9 @@ The bullets below **paraphrase** the article (no images required for the skill; 
 
 3. **Ease of sharing** — Browsers do not render `.md` uniformly; HTML can be **opened locally** or **uploaded** (e.g. S3) and shared as a URL—higher odds colleagues read the spec, report, or PR explainer.
 
-4. **Two-way interaction** — Sliders, knobs, and toggles let readers explore parameters; pair with **copy-out** to paste results back into Claude Code (see [Two-way interaction](#two-way-interaction-and-playgrounds)).
+4. **Two-way interaction** — Sliders, knobs, and toggles let readers explore parameters; pair with **copy-out** to paste results back into the agent session (see [Two-way interaction](#two-way-interaction-and-playgrounds)).
 
-5. **Data ingestion (Claude Code angle)** — In-repo HTML artifacts benefit from **filesystem**, **git history**, **MCPs** (Slack, Linear, etc.), and browser context—good fit for synthesized reports and categorized diagrams.
+5. **Data ingestion (agent-assisted workflows)** — In-repo HTML artifacts benefit from **filesystem**, **git history**, **CLIs / MCPs** (chat, issue trackers, etc.), and browser context—good fit for synthesized reports and categorized diagrams.
 
 6. **Affective goal** — The author frames HTML collaboration as **more engaging** (“joyful”) and feeling **more in the loop** than skipping long Markdown plans.
 

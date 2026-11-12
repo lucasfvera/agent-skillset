@@ -1,36 +1,38 @@
 # Agent skillset
 
-Cursor skills for how we plan work, ship code, open PRs, and close review loops.
+Portable agent skills for planning vertical slices, shipping verified code, running two-pass domain code reviews, opening anti-cognitive-surrender PR stacks, and closing review loops.
 
 ```bash
 npx github:lucasfvera/agent-skillset
 ```
 
-Copies every `bmo-*` skill into `~/.cursor/skills/`.
+Copies every `bmo-*` skill into `~/.cursor/skills/` (or `$BMO_SKILLS_DIR` when set) and installs the pre-PR checks hook (`hooks/pr-checks.py`) into `~/.cursor/hooks/`. Environments without shell hooks enforce the same pre-PR checks directly via [`hooks/pr-checks.md`](hooks/pr-checks.md) inside `/bmo-builder` and `/bmo-pr`.
 
 ## Manual Workflow
 
-<img width="6455" height="1272" alt="image" src="https://github.com/user-attachments/assets/e44b4794-a54a-46cb-9955-0d8fa17bb0f1" />
+<img width="6455" height="1272" alt="Manual workflow overview" src="https://github.com/user-attachments/assets/e44b4794-a54a-46cb-9955-0d8fa17bb0f1" />
 
-The original flow from which I started. I ran, manually, one skill at a time until I felt comfortable to automate.
+The original flow from which these skills evolved: running one skill at a time with human checkpoints before composing them into automated pipelines.
 
 ## Skills
 
 | Skill | When to use it |
 |-------|----------------|
-| `/bmo-block-reviewer` | You want a short, findings-first review of a diff (delivery block, PR slice, or named files) against BMO quality rules and the team learnings catalog. |
-| `/bmo-commit` | You want a conventional commit from what's already staged. Won't auto-stage, edit files, or run formatters. Infers monorepo scope from staged paths. |
-| `/bmo-document-html` | You want a self-contained HTML doc (architecture, migration, handoff) with diagrams, not another markdown file. |
-| `/bmo-git-stack-update-refs-push` | You have a local branch stack to rebase with `--update-refs`, wire to `origin/<branch>`, and publish with force-with-lease. |
-| `/bmo-integration-tests` | You need Roxom-style integration tests with real Postgres, RabbitMQ, and gRPC (tx, hermod, similar services). Uses the smallest real stack that proves the behavior. |
-| `/bmo-merge-conflicts` | You're mid-rebase with conflict markers. Default is suggestions only; it edits files when you ask it to resolve. |
-| `/bmo-pr` | You want to open or update a GitHub PR with a conventional title and a filled-out body (repo template or default sections). |
-| `/bmo-stack-prs` | You have a stacked branch line and need ordered PRs, pushes for out-of-sync heads, and missing PRs opened from git history alone. |
-| `/bmo-step-deliver` | You want work in reviewable slices: scope, verification commands, and a structured review digest. Stops after each unit until you say continue. |
-| `/bmo-step-planner` | The task is big or cross-cutting and you want a plan (U1, U2, …) written under `.cursor/plans` before anyone writes code. |
-| `/bmo-sync-repo-documentation` | Scripts, paths, env, or public APIs changed and docs (README, `docs/`, AGENTS.md, `.cursor` rules/skills) may be out of date. |
-| `/bmo-triage` | You have a Linear issue and want complexity, Kano user value, importance, and ROI before planning or coding. Blocks when acceptance criteria are not explicit or derivable; skips issues that are done or unreachable. |
-| `/bmo-update-block-reviewer-skill` | Pending session captures in `inbox/pending/` need distilling into the learnings catalog and promotion into `bmo-block-reviewer`. |
+| `/bmo-block-reviewer` | Two-pass findings-first diff review: Pass 1 (`[issue]`) catches correctness, contract, security, performance, and false-test defects; Pass 2 (`[style]`) checks conventions across domain catalogs (`core`, `frontend`, `backend`, `database`, `testing`). |
+| `/bmo-commit` | Creates a git commit strictly from staged changes without editing files or running formatters, matching the repository's commit style. |
+| `/bmo-document-html` | Produces standalone, graphics-first technical documentation as a self-contained HTML page with diagrams, semantic layout, and light/dark styling. |
+| `/bmo-git-stack-update-refs-push` | Rebases a local branch stack with `git rebase --update-refs`, aligns upstream tracking, and publishes rewritten tips with `--force-with-lease`. |
+| `/bmo-integration-tests` | Adds or extends service integration tests against real databases, HTTP/gRPC/RPC transports, and message brokers using the smallest real stack that proves the production boundary. |
+| `/bmo-merge-conflicts` | Analyzes git rebase merge conflicts side-by-side (suggestions only by default; resolves files only on explicit ask). |
+| `/bmo-pr` | Opens or updates a GitHub PR (~100–200 LOC production soft ceiling, tests co-located) with green pre-PR checks (`hooks/pr-checks.md`), an anti-cognitive-surrender review body, and release-free visual screenshots when tooling is available. |
+| `/bmo-stack-prs` | Infers stacked branch order from git history, pushes out-of-sync stack heads, and opens/updates stacked GitHub PRs (`Part i of k`) with anti-cognitive-surrender bodies. |
+| `/bmo-step-deliver` | Delivers scoped ~100–200 LOC vertical slices (with tests) one unit at a time, running narrow verification and emitting a structured review digest before pausing for `continue`. |
+| `/bmo-step-planner` | Authors a sliced markdown plan (`U1`, `U2`, …) with ~100–200 LOC vertical units, co-located tests, backing docs, boundary failure modes, and rollback seams before writing code. |
+| `/bmo-sync-repo-documentation` | Brings repository documentation (`README`, `docs/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, rules, skills) back in sync with real scripts, env samples, paths, and CI. |
+| `/bmo-teach` | Scaffolds an offline, hands-on learning repository calibrated to your starting point across sprint, portfolio, and TDD kata tracks. |
+| `/bmo-tone` | Enforces direct, zero-fluff engineering prose when ghostwriting PRs/comments/docs or replying in chat. |
+| `/bmo-triage` | Scores an issue (Linear, GitHub Issues, or pasted text) on complexity, Kano user value, importance, ROI, and automated pickup readiness. |
+| `/bmo-update-block-reviewer-skill` | Distills pending PR review captures from `inbox/pending/` into domain- and tier-classified rules (`issue` on 1+ PR source; `style` staged in `ledger.md` and promoted on 2+ PR sources). |
 
 ## Workflows
 
@@ -38,20 +40,20 @@ The original flow from which I started. I ran, manually, one skill at a time unt
 
 | When to use it |
 |----------------|
-| You already know the work and do not want triage. Pass a feature or bug (or an existing plan file). It plans, uses isolated worktrees per repo, delivers each unit with block review and commit, runs the repo's test, typecheck, and lint checks until they pass, then opens PRs. |
+| End-to-end build when you already know the work: authors a vertical-sliced plan (`U1..Uk`), creates isolated worktrees per repo with stacked unit branches by default, delivers each unit with parallel 2-pass block review and commits, runs parallel domain-scoped final review + pre-PR checks (`hooks/pr-checks.md`), and opens stacked PRs. |
 
-### `/bmo-linear-pipeline`
+### `/bmo-issue-pipeline`
 
-<img width="3908" height="1489" alt="image" src="https://github.com/user-attachments/assets/4bb56419-1783-415d-885e-f098b487e5e9" />
+<img width="3908" height="1489" alt="Issue pipeline workflow" src="https://github.com/user-attachments/assets/4bb56419-1783-415d-885e-f098b487e5e9" />
 
 | When to use it |
 |----------------|
-| Hands-off pickup of a Linear issue: triage first, then Gate 1 reads the triage **Pickup** cell. On Yes, hand off to `/bmo-builder`. Stops on Skip, unclear AC, or Pickup No. |
+| Hands-off pickup of an issue (Linear key/URL, GitHub Issue, or tracker text): runs `/bmo-triage` first, checks Gate 1 (`Proceed` + `Pickup: Yes`), and hands off to `/bmo-builder` to ship the PR(s). Stops cleanly on `Skip`, unclear acceptance criteria, or `Pickup: No`. |
 
 ### `/bmo-respond-pr-review`
 
-<img width="5828" height="1404" alt="image" src="https://github.com/user-attachments/assets/1523ef30-755d-443f-a1cd-adc7c046c81c" />
+<img width="5828" height="1404" alt="Respond to PR review workflow" src="https://github.com/user-attachments/assets/1523ef30-755d-443f-a1cd-adc7c046c81c" />
 
 | When to use it |
 |----------------|
-| You have human PR review comments to address end to end: triage threads, implement fixes, block-review before publish, commit and push, reply on GitHub, resolve threads, post a summary, and capture session feedback for the block-reviewer inbox. |
+| Closes the human PR review loop end to end: triages inline threads and top-level review bodies, implements fixes locally, runs one 2-pass `bmo-block-reviewer` subagent per code-changing review item before push, replies and resolves threads on GitHub without duplicate top-level comments, and captures raw feedback into `inbox/pending/`. |

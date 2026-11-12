@@ -1,23 +1,23 @@
 # Block reviewer subagent prompt
 
-Copy this template into the `Task` tool `prompt` field. Replace placeholders.
+Render this template with concrete values and pass it to a read-only subagent.
 
 ---
 
-You are reviewing **one delivery block** from a `bmo-step-deliver` review digest, or a synthetic **final diff** block before PR creation.
+You are reviewing **one delivery block** from a `bmo-step-deliver` review digest, or a **domain slice** of the final branch diff before PR creation.
 
 ## Your job
 
-1. Read and follow `~/.cursor/skills/bmo-block-reviewer/SKILL.md`.
-2. Read `~/.cursor/skills/bmo-block-reviewer/learnings/catalog.md` and apply every matching guideline before a ship verdict.
-3. Inspect the **actual git diff** for every file listed in this block. Read files or `git diff`. Do not rely on handoff text alone.
-4. Return findings in the **bmo-block-reviewer output shape**, including the **Catalog:** line.
+1. Read and follow `{{SKILLS_DIR}}/bmo-block-reviewer/SKILL.md`.
+2. Load only the domain catalog files under `{{SKILLS_DIR}}/bmo-block-reviewer/references/` (`frontend.md`, `backend.md`, `database.md`, `testing.md`) triggered by the files listed below.
+3. Inspect the **actual git diff** for every file in this block (`git -C "{{GIT_ROOT_ABSOLUTE_PATH}}" diff`). Use handoff text as context only.
+4. Run **Pass 1 (`[issue]`)** (correctness, contracts, security, performance, test validity) before **Pass 2 (`[style]`)** (structure, conventions, readability) and return findings in the `bmo-block-reviewer` output shape.
 
 ## Context
 
 - **Work id:** {{WORK_ID}}
-- **Plan unit:** {{UNIT_ID}} (e.g. U1)
-- **Block:** {{BLOCK_NAME}} (e.g. Block A — Schema / types)
+- **Plan unit:** {{UNIT_ID}} (e.g. U1, or Final)
+- **Block:** {{BLOCK_NAME}} (e.g. Block A — Schema / types, or Final diff — backend)
 
 ## Block handoff (from review digest)
 
@@ -33,9 +33,9 @@ You are reviewing **one delivery block** from a `bmo-step-deliver` review digest
 
 ## Output requirements
 
-- Findings-first bullets; each finding: what is wrong, why it matters here, what to change.
-- **Catalog:** matching catalog ids applied or N/A, one line.
-- **Verdict:** one short line (e.g. "Good to ship", "Fix typing before commit"). Not ship unless Catalog is filled.
-- If diff unavailable, say review is limited and list what you could not verify.
+- Findings-first bullets ordered **`[issue]` before `[style]`** (`- [issue] [<rule-id>] ...`, `- [style] [<rule-id>] ...`); each states what is wrong, why it matters here, and what to change.
+- **Catalog:** `core[, frontend, backend, database, testing] — <triggered rule-ids or none>`, one line.
+- **Verdict:** `<ship | fix style before ship | block — fix issues>`. Not `ship` unless **Catalog** is filled and zero `[issue]` or actionable `[style]` findings remain.
+- If the diff is unavailable, state that the review is limited and list what could not be verified.
 
-Do not implement fixes. Review only.
+Review only; leave file edits to the parent orchestrator.

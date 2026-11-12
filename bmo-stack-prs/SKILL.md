@@ -1,6 +1,6 @@
 ---
 name: bmo-stack-prs
-description: Infers stacked PRs from git history using only the stack tip (defaults to current branch) and repo default branch, discovers ordered branches on ROOT..TIP without the user listing push targets, reconciles with open GitHub PRs to push any out-of-sync stack heads and create only missing PRs. Confirms with the user on ancestry failure, non-linear history, base mismatch, or divergence—otherwise proceeds. Use for stacked PRs, incremental stack updates, or layered merges that respect ancestry.
+description: Infers stacked branch order from git history, pushes out-of-sync stack heads, and creates missing stacked GitHub PRs.
 disable-model-invocation: true
 ---
 
@@ -63,7 +63,7 @@ Then execute §2 → §3 → push the computed push-set → §5–§6 for gap he
 5. Map **local** branch tips to commits on that line (`git rev-parse branch` for each candidate). Include only branches whose tip SHA appears on that path.
 6. Sort those branches **chronologically** along `ROOT..TIP` (order of first appearance of each tip commit in the reversed log, or equivalently increasing ancestry depth from `ROOT`).
 
-**Include** intermediate branches (e.g. `chore/*`, `test/*`) if their tips sit on the path—**do not** skip from `feat/n` to `tip` if named branches exist between them.
+**Include** intermediate branches (e.g. `chore/*`, `refactor/*`) if their tips sit on the path—**do not** skip from `feat/n` to `tip` if named branches exist between them.
 
 ## 2. Verify ancestry (required)
 
@@ -80,7 +80,7 @@ git merge-base --is-ancestor "$base_ref" "$head_ref"
 
 for each pair using the **local ref** that matches what will be pushed (e.g. use `origin/main` only when comparing into `main` for correctness). If any check fails, **stop** and report which pair breaks; do not open PRs until the stack is fixed.
 
-**Common mistake:** assuming lexical order of branch names equals stack order. **History** decides (e.g. a `test/*` branch may be the base for a later `feat/*` if the feat tip is a descendant of the test tip).
+**Common mistake:** assuming lexical order of branch names equals stack order. **History** decides (e.g. a `chore/*` or `refactor/*` branch may be the base for a later `feat/*` if the feat tip is a descendant of that tip).
 
 ## 3. Compare plan to GitHub (incremental / existing stack)
 
@@ -108,7 +108,9 @@ gh pr list --state open --limit 200 --json number,url,baseRefName,headRefName
 
 **Summary for the user:** List (a) slices already satisfied on GitHub, (b) slices with base mismatch, (c) branches that still need **push**, (d) slices that need **PR create**. This is the answer to “what already exists vs what we need to do.”
 
-## 4. Push branches (automatic set)
+## 4. Verify pre-PR checks and push branches (automatic set)
+
+Before pushing and calling `gh pr create`, ensure the repository's `lint`, `typecheck`, and `test` checks are green on the committed stack tip per [`../hooks/pr-checks.md`](../hooks/pr-checks.md) (skip re-running only if `bmo-builder` Phase 4b just passed on this exact `HEAD`).
 
 Use the **push set** from **Minimum input and automation** (every stack `head_i` where local ref differs from `origin/<head_i>` or remote branch missing). Do **not** wait for the user to name these branches.
 
@@ -126,14 +128,14 @@ Do **not** use `--force` unless the user explicitly requests it.
 
 ## 5. PR body and title
 
-**Template:** If the repo has `.github/pull_request_template.md`, follow it. Otherwise use:
+Follow [`bmo-pr/SKILL.md`](../bmo-pr/SKILL.md) (`## 4. Title` and `## 5. Body (preventing cognitive surrender)`) as the single source of truth for every slice's title and PR body:
 
-- `# Description` — Summarize this slice; include a fenced block listing `git log --oneline <log_range>` where `<log_range>` is the ref range for commits unique to this PR (e.g. `origin/main..head` for PR1 when local `main` diverges; otherwise `previous_head..current_head`).
-- `# Context` — Stacking note, review focus, what later PRs add.
-- `# Screenshots` — “These will be included by the user, no need to add them.”
-- `## How to test` — Checkout the **head** branch, install deps, run tests/build relevant to the slice.
-
-**Title:** Conventional commit style: `type: Imperative subject` (subject starts with a capital verb, no trailing period). Prefer a summary of **all** commits in the slice when there are several.
+- **Scope & self-containment:** Each stacked PR represents one significant, domain-focused vertical slice (~100 LOC target / ~200 LOC production-code soft ceiling, excluding tests, lockfiles, snapshots, and generated code) **with its unit/integration tests included in the same PR**.
+- **`## Intent & stack position`:**
+  - Set **Stack position** to `Part i of k — stacked on #<prev-pr-or-branch>: <1-line role of this slice in the stack>` (or `Part 1 of k — base: <default-branch>` for PR1).
+  - Include a fenced commit block for the slice's unique range (`git log --oneline <base_i>..<head_i>`, using `origin/<default-branch>..<head_1>` for PR1).
+- **`## Decisions, trade-offs & backing docs`**, **`## Failure modes & boundary risks`**, **`## How to review (product & decision focus)`**, and **`## Verification & unverified gaps`:** Populate for **this slice only**, stating what later PRs in the stack add under **Out of scope**.
+- **`## Screenshots`:** Follow [`../bmo-pr/screenshots.md`](../bmo-pr/screenshots.md) (release-free `--attach` or `gh image`, skipping cleanly without creating GitHub releases if tooling is unavailable) when the slice changes visual UI or UI copy/constants, or write `N/A — non-visual change`.
 
 ## 6. Create PRs with GitHub CLI (gaps only)
 

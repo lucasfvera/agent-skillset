@@ -1,153 +1,127 @@
-# Visual screenshots for PR bodies
+# Visual screenshots for PR bodies (release-free)
 
-Load this file only when the **visual** gate in `SKILL.md` is **yes**. Capture and embed images **before** `gh pr create` / `gh pr edit` so the Screenshots section is never a leftover `N/A` on a visual PR.
+Load this file when the visual check in [`SKILL.md`](SKILL.md) (`## 3. Capture screenshots when visual`) fires.
 
-## Tooling gate (mandatory)
+**Hard rule — never create GitHub releases, prereleases, or tags** to upload screenshots, and never commit temporary PNGs into the repository. If a release-free upload path or browser capture tool is unavailable, **skip the screenshot step cleanly** instead.
 
-Run this **before** mode, targets, or capture. Visual PRs need real screenshots in the body — missing tools are a hard stop, not a soft fallback.
+## 1. Tooling & release-free upload check
 
-1. **`agent-browser`** (capture — same CLI as `~/roxom/outworld` `screenshot-browser`):
+Verify both capture and a release-free upload path before booting the app:
+
+1. **Capture CLI (`agent-browser`):**
 
    ```bash
    command -v agent-browser >/dev/null 2>&1 && agent-browser --version
    ```
 
-   Exit **0** and a version line required.
+2. **Release-free upload path** — detect the first available option:
+   - **Path A (preferred — native GitHub CLI 2.99.0+ `--attach`):**
+     ```bash
+     gh pr create --help | grep -q -- '--attach' && gh auth status
+     ```
+   - **Path B (`gh image` extension):**
+     ```bash
+     gh extension list | grep -q gh-image && gh auth status
+     ```
 
-2. **Upload path** — at least one of:
+**When either check fails — skip cleanly (never create GitHub releases, prereleases, or tags):**
+- Set `## Screenshots` in the PR body to `Skipped — screenshot tooling unavailable in this environment` and note which tool was missing (`agent-browser`, `gh 2.99.0+ --attach`, or `gh-image`) in your chat summary so the user can attach media manually if needed.
+- Stop reading this file and continue to [`SKILL.md`](SKILL.md) `## 4. Title`.
 
-   ```bash
-   gh extension list | grep -q gh-image && echo "gh-image OK"
-   # or stock gh is enough for the prerelease-asset path below:
-   gh auth status
-   ```
+**Done:** Both `agent-browser` and Path A (`--attach`) or Path B (`gh image`) are available, or `## Screenshots` is marked `Skipped` and capture is bypassed.
 
-   Prefer **`gh image`** ([`drogers0/gh-image`](https://github.com/drogers0/gh-image)). If it is missing but `gh auth status` succeeds, the prerelease-asset path is allowed. If **both** fail, treat as missing tooling.
+---
 
-**If anything required is missing — push back and stop:**
+## 2. Mode & surfaces
 
-- Do **not** create or edit the PR.
-- Do **not** substitute Cursor browser MCP, Playwright, or “open the PR and drag-drop later”.
-- Tell the user what failed and how to install, then wait for them to retry `/bmo-pr`:
-
-  ```text
-  Visual PR needs screenshots. Install tooling, then re-run /bmo-pr:
-
-  # capture
-  npm install -g agent-browser && agent-browser install
-
-  # upload (recommended)
-  gh extension install drogers0/gh-image
-
-  # or ensure gh is logged in for prerelease asset uploads
-  gh auth login
-  ```
-
-**Done (tooling):** `agent-browser` verified; upload path verified (`gh image` or authenticated `gh`). Otherwise stopped with the install ask above.
-
-## Mode
-
-Pick exactly one:
+Pick one mode from the diff:
 
 | Mode | When | What to capture |
 |------|------|-----------------|
-| **before/after** | An existing screen or flow changes | Same URL/path, same viewport: **before** on base (or current prod/QA still on base), **after** on the PR branch |
-| **implementation-only** | New UI with no prior screen to compare | One (or a short set of) **after** shots of the new surface |
+| **before/after** | Existing screen, component, or copy changes | Same URL/path and viewport: **after** on the PR branch, **before** on `<base>` (or a still-base preview/QA URL) |
+| **implementation-only** | Brand-new UI surface with no prior screen | **after** shots of the new surface |
 
-If before is blocked (no runnable base, no stable base URL, auth wall), fall back to **implementation-only** and say so in one line under the images — do not invent a fake before.
+If capturing **before** is blocked (no runnable base or preview URL), fall back to **implementation-only** and add a one-line note beneath the image.
 
-**Done (mode):** one mode chosen; if before/after, both sides targeted for the same route(s).
+For each affected surface, list: `URL path — optional control to click/open — expected visual state` (so modals, menus, toggles, and validation states are captured open, not just initial page load).
 
-## Targets
+**Done:** Mode and ordered surface list (with URLs and interactive controls) are defined.
 
-1. **Routes** — From the diff and “How to test”, list the URL path(s) a reviewer must open (e.g. `/exchange/account/deposit`). Prefer the fewest paths that show the change.
-2. **Base URL** — Local dev from README/`package.json` scripts, or a QA/preview host the user names. Do not hardcode a host from another repo.
-3. **Viewport** — Default desktop unless the change is mobile-specific; keep before and after identical.
+---
 
-**Done (targets):** every capture has a concrete absolute URL and output path.
+## 3. Sessions & authentication
 
-## Capture (`agent-browser` only)
+Keep logged-out and logged-in state isolated in separate `agent-browser` sessions:
 
-Use **`agent-browser` only** (outworld flow: open → settle → screenshot). No other browser tool.
+| Auth requirement | Session flag |
+|------------------|--------------|
+| Logged-out / public route | `--session anon` |
+| Logged-in / guarded route | `--session authed` |
+| Both | Capture both; prefix filenames with `anon-` and `authed-` |
 
-Write under a **temp** directory (do not commit screenshots unless the user asks):
+**Logged-in state resolution (in order):**
+1. Existing state file in `$AGENT_BROWSER_STATE`: `agent-browser --session authed --state "$AGENT_BROWSER_STATE" ...`
+2. Environment credentials (`$E2E_USER_EMAIL` and `$E2E_USER_PASSWORD`): open the login route, fill from env vars without printing secret values, save state, then walk the target surfaces.
+3. If the route is auth-gated and neither session state nor credentials exist, **skip capture** (or ask the user once if interactive) rather than screenshotting a login redirect wall as fake proof.
+
+**Done:** Required session(s) are authenticated or the auth blocker is handled honestly.
+
+---
+
+## 4. Capture stills
+
+Write PNGs under a temporary directory outside git tracking:
 
 ```bash
 OUT="${TMPDIR:-/tmp}/bmo-pr-screenshots/<branch-slug>"
 mkdir -p "$OUT"
 
-agent-browser open "<absolute-url>"
-agent-browser wait 2000
-agent-browser screenshot "$OUT/<name>.png"
-# optional: agent-browser screenshot --full "$OUT/<name>.png"
+agent-browser --session <anon|authed> open "<absolute-url>"
+agent-browser --session <anon|authed> wait 2000
+# If the surface requires opening a modal, tab, or toggle:
+# agent-browser --session <anon|authed> click "<selector>" && agent-browser --session <anon|authed> wait 1000
+agent-browser --session <anon|authed> screenshot "$OUT/<name>.png"
 ```
 
-**Settle** = fixed **2000 ms** wait after open (match outworld) unless the page needs a longer explicit wait for a known spinner/route transition — then wait that, still once, before the shot.
+- **Naming:** `<route-slug>-before.png` / `<route-slug>-after.png` (`before/after`), or `<route-slug>-after.png` (`implementation-only`).
+- **Before/after order on a local dev server:** capture **after** on the PR branch first; if switching to `origin/<base>` locally for **before**, restore the PR branch checkout/worktree immediately afterward.
 
-**Naming:**
+**Done:** Every planned PNG exists on disk and is non-empty; working branch is restored.
 
-- before/after: `<route-slug>-before.png`, `<route-slug>-after.png`
-- implementation-only: `<route-slug>-after.png` (or `-01`, `-02` for a short set)
+---
 
-**before/after order (local app):**
+## 5. Embed & attach (release-free)
 
-1. Ensure the app serves the **PR branch** → capture **after**.
-2. Switch to **base** (stash if needed, `git checkout origin/<base>` or equivalent) → same URL → capture **before** → restore the PR branch and stash.
-3. If switching branches is too costly, capture **before** from a still-base remote URL, then **after** from the PR preview/local URL.
+### Using Path A (`gh pr create --attach` / `gh pr edit --attach`)
 
-If capture fails after tooling was verified (app down, auth wall, bad URL), **push back and stop** — fix the environment, then re-run. Do not open a PR with empty Screenshots.
+1. Reference the local `$OUT/<file>.png` paths directly in the PR body file (`gh` uploads each file and rewrites the Markdown path to `https://github.com/user-attachments/assets/...`):
 
-**Done (capture):** every planned PNG exists on disk and is readable; branch/worktree restored if you checked out base.
+   ```markdown
+   | Before | After |
+   | --- | --- |
+   | ![before](<OUT>/<route-slug>-before.png) | ![after](<OUT>/<route-slug>-after.png) |
+   ```
 
-## Embed in the PR body
+   *(Or `![after](<OUT>/<route-slug>-after.png)` for `implementation-only`.)*
 
-Images must be **URLs** GitHub can render (local paths do not work in the PR body).
+2. Pass one `--attach` flag per referenced PNG on `gh pr create` or `gh pr edit`:
 
-**Upload preference:**
+   ```bash
+   gh pr create ... --body-file <temp-path> \
+     --attach "$OUT/<route-slug>-before.png" \
+     --attach "$OUT/<route-slug>-after.png"
+   ```
 
-1. **`gh image`** when installed — prints markdown `![…](https://github.com/user-attachments/assets/…)`:
+3. Verify `gh pr view <n> --json body -q .body` contains `https://github.com/user-attachments/assets/` URLs and zero leftover local `$OUT` paths.
+
+### Using Path B (`gh image`)
+
+1. Upload each still before creating/updating the PR:
 
    ```bash
    gh image "$OUT/<name>.png"
    ```
 
-2. Else **prerelease assets** on a throwaway tag (authenticated `gh`):
+2. Place the returned `![...](https://github.com/user-attachments/assets/...)` Markdown URLs into `## Screenshots` in the PR body file, then run `gh pr create` / `gh pr edit`.
 
-   ```bash
-   TAG="pr-screenshots-<branch-slug>"
-   gh release create "$TAG" "$OUT"/*.png \
-     --title "PR screenshots ($TAG)" \
-     --notes "Temporary assets for PR body; safe to delete after merge." \
-     --prerelease
-   # Resolve each asset's browser_download_url via:
-   #   gh api "repos/<owner>/<repo>/releases/tags/$TAG" --jq '.assets[] | {name, browser_download_url}'
-   ```
-
-If upload fails, **push back and stop** — do not create/edit the PR with local-only paths.
-
-**Body shapes** (fill the template’s Screenshots section, or the default skeleton):
-
-before/after:
-
-```markdown
-| Before | After |
-| -- | -- |
-| ![before](<url>) | ![after](<url>) |
-```
-
-implementation-only:
-
-```markdown
-![after](<url>)
-```
-
-Multiple routes: one table (or one after block) **per route**, with the path as a short subheading.
-
-**Done (embed):** Screenshots section has live image markdown for the chosen mode.
-
-## Out of scope
-
-- Pixel diff / `odiff` (that is outworld `screenshot-compare`, not required for PR bodies).
-- Committing PNGs into the app repo by default.
-- Capturing every page in the product — only routes the change touches.
-- MCP/Playwright capture substitutes when `agent-browser` is missing.
+**Done:** Published PR body renders live `user-attachments` image URLs with zero GitHub releases or tags created.

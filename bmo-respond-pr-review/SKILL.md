@@ -1,14 +1,6 @@
 ---
 name: bmo-respond-pr-review
-description: >-
-  Triage human PR review comments, including inline threads and non-empty
-  top-level review bodies, implement fixes, run one bmo-block-reviewer
-  subagent per code-changing review item before publish, reply without duplicate
-  top-level follow-up comments, resolve threads, and post a single summary /
-  overall-review follow-up comment.
-  Use when the user asks to address PR review feedback, respond to review
-  comments, resolve PR threads, or invokes /bmo-respond-pr-review with a PR URL
-  or number.
+description: Triages PR review threads and top-level reviews, block-reviews each code fix before push, posts deduplicated replies, and captures learnings.
 disable-model-invocation: true
 argument-hint: "[pr url or number]"
 ---
@@ -21,7 +13,7 @@ Close the loop on human PR review. Triage inline threads and overall review bodi
 
 **Prerequisite:** `gh` authenticated with permission to comment, react, and resolve review threads on the repo.
 
-**Related skills:** [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md) (mandatory pre-publish review per code solution); [`bmo-commit`](../bmo-commit/SKILL.md) for scoped commit messages; [`bmo-update-block-reviewer-skill`](../bmo-update-block-reviewer-skill/SKILL.md) (session feedback capture); Cursor **babysit** for broader merge readiness.
+**Related skills:** [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md) (mandatory pre-publish review per code solution); [`bmo-commit`](../bmo-commit/SKILL.md) for repo-aligned commit messages; [`bmo-update-block-reviewer-skill`](../bmo-update-block-reviewer-skill/SKILL.md) (session feedback capture); CI and mergeability checks for broader merge readiness.
 
 ---
 
@@ -98,7 +90,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
   --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
 ```
 
-Filter to **human review threads** unless the user wants bot threads (Bugbot). For Bugbot, apply skeptical triage from **babysit**.
+Filter to **human review threads** unless the user asks to include bot review threads. Evaluate bot comments skeptically against the actual code and contracts before accepting them.
 
 Fetch non-empty top-level review bodies too:
 
@@ -152,7 +144,7 @@ Submit or discard pending reviews before step 7.
 | **Partially valid** | Direction right, detail off | Yes | Fix valid part; explain rest in reply |
 | **Dismissed** | Wrong, out of scope, or nitpick | No | Draft explanation only |
 
-Use [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md) as the initial quality bar during triage. Build a triage table (anchor, verdict, planned action) before editing.
+Use [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md) (and any matching domain catalog under `../bmo-block-reviewer/references/`) as the initial quality bar during triage. Build a triage table (anchor, verdict, planned action) before editing.
 
 For a top-level review body:
 
@@ -176,23 +168,23 @@ If every review item is **Dismissed**, skip to step 7 (draft replies only).
 
 For **each review item** with `needsBlockReview: true`:
 
-1. **Spawn one subagent** via `Task`. Wait for **all** to finish before step 6.
-2. Use the prompt template at [references/thread-reviewer-subagent.md](references/thread-reviewer-subagent.md).
+1. **Spawn one read-only subagent** in parallel using your host's subagent tool (fallback: review sequentially inline if the host has no subagent tool). Wait for **all** to finish before step 6.
+2. Render [references/thread-reviewer-subagent.md](references/thread-reviewer-subagent.md), setting `SKILLS_DIR` to the absolute path of the parent directory containing `bmo-respond-pr-review`.
 3. Pass each subagent:
    - Review comment body, verdict, planned action
    - Absolute paths of changed files for that review item
    - Git root and diff base (`HEAD` before commit, or staged diff)
    - One sibling file to compare against when pattern drift is likely
 
-**Subagent rules:** read `bmo-block-reviewer/SKILL.md`; review only that review item's diff; do not implement fixes.
+**Subagent rules:** read `bmo-block-reviewer/SKILL.md` and only the matching domain catalogs (`references/{frontend,backend,database,testing}.md`); review only that review item's diff in two passes (`[issue]` then `[style]`); leave file edits to the parent.
 
 **Parent triage after all subagents return:**
 
 | Finding | Action |
 |---------|--------|
-| **Real** | Fix before commit |
-| **Style** | Fix only when a clear repo/sibling pattern or prior user feedback applies |
-| **Deferred / nitpick** | Note in reply or skip; do not churn |
+| **`[issue]` (strict defect)** | Fix before commit |
+| **`[style]` (convention / taste)** | Fix when a catalog rule, sibling pattern, or prior user feedback applies |
+| **Deferred / out of scope** | Note in reply or skip; do not churn |
 
 Do **not** push or post GitHub replies until real findings are fixed or explicitly dismissed with a one-line reason.
 

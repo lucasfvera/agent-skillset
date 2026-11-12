@@ -1,103 +1,93 @@
 ---
 name: bmo-block-reviewer
-description: Findings-first review of a code diff against BMO quality rules and the team learnings catalog.
+description: Two-pass findings-first diff review separating strict correctness issues from coding style across domain catalogs.
 disable-model-invocation: true
 ---
 
 # Block reviewer (bmo)
 
-Review the changed files the way the user reviews them: short, practical, biased toward code quality that fits their style.
+Review the changed files in two ordered passes: **Pass 1 (`[issue]`)** catches correctness, contract, security, performance, and false-test defects; **Pass 2 (`[style]`)** aligns structure, conventions, and readability to the author's style without crowding out strict issues.
 
-This skill covers a delivery-digest block, a PR-fix slice, or any named diff. Parent skills (`bmo-builder`, `bmo-respond-pr-review`) spawn reviewers; they own orchestration.
+This skill covers a delivery-digest block, a PR-fix slice, or a domain slice of a branch diff. Parent skills (`bmo-builder`, `bmo-respond-pr-review`) own subagent orchestration.
 
-## Default evidence
+## Review procedure
 
-1. Prefer the actual changed files and diff.
-2. Use handoff text (block digest, verification notes, review comment) as supporting context.
-3. If the diff is unavailable, review the handoff text only and say the review is limited by missing code context.
+1. **Inspect the diff:** Read the actual changed files and `git diff` (plus one sibling file when checking pattern consistency). Use handoff text (digest, verification notes, PR comment) as supporting context only; if the diff is unavailable, state that the review is limited by missing code context. Treat work explicitly marked for a later unit as **Deferred (out of scope)**, not a finding.
+2. **Load matching domain catalogs:** Always apply the **Core** rules below, plus only the domain files triggered by the changed paths:
+   - **Frontend** ([`references/frontend.md`](references/frontend.md)) — UI components, client hooks, form or view state, templates, CSS/design tokens.
+   - **Backend** ([`references/backend.md`](references/backend.md)) — HTTP/gRPC/message handlers, routes, middleware, services, wire schemas/protos, generated clients.
+   - **Database** ([`references/database.md`](references/database.md)) — SQL queries, repositories/stores, DB transactions, schema constraints, migrations.
+   - **Testing** ([`references/testing.md`](references/testing.md)) — Unit, component, and integration specs (`*.test.*`, `*.spec.*`), fixtures, mocks, test harnesses.
+3. **Pass 1 — Strict issues (`[issue]`):** Check **Core → Strict issues** and each loaded domain's **Strict issues** section first. Trace failure paths, boundary validation, status codes, resource locks, and whether tests can pass when production is broken.
+4. **Pass 2 — Style & conventions (`[style]`):** Check **Core → Style & conventions** and each loaded domain's **Style & conventions** section second. Skip generic security hunts, invented edge cases, and long summaries.
 
-## Scope
+**Done:** Every domain file matching the changed paths was read; Pass 1 (`[issue]`) was evaluated before Pass 2 (`[style]`); every triggered rule cites its `[rule-id]`.
 
-Review only the files in this handoff. When a digest is present, treat its **Review:** bullets as acceptance criteria. Work deferred to a later unit is **Deferred (out of scope)**, not a blocker. Cite a sibling file when flagging pattern drift.
+---
 
-## What to look for
+## Core — Strict issues (`[issue]`)
 
-- Incorrect typing. Never allow `any`.
-- Type with the real contract; skip `as` unless there is no cleaner option. Do not cast queried elements when the locator already provides the type.
-- Type test fixtures with the producing service's contract types, not loose object shapes.
-- Preserve comments that help the next person understand the code.
-- Skip over-defensive checks for states that cannot happen on this path.
-- Extract reusable logic into its own file when that makes testing easier.
-- Check for duplication before accepting new code. Reuse shared suite mocks for common dependencies instead of one-off mock shapes.
-- Code that changes together should stay close together.
-- Flag added latency on the hot path of the changed code.
-- Always use strict equality when comparing values.
-- Replace hardcoded numeric defaults with existing constants from schemas or shared packages.
-- Skip display fallbacks for notification or UI states the upstream pipeline never emits. Do not invent default tickers or assets when a lookup is unresolved.
+Apply on every diff during Pass 1.
 
-## When reviewing tests
+- **[no-any]** Type every value, parameter, and return path explicitly; replace `any` with the concrete contract type or `unknown` narrowed by a guard.
+- **[catch-unknown-not-any]** Bind `catch (err: unknown)` and narrow with `instanceof Error` or a typed guard before reading error properties.
+- **[strict-equality]** Compare values with strict equality (`===`, `!==`) so type coercion never masks `null`, `undefined`, or numeric mismatches.
+- **[use-decimal-helpers]** Compute money, rate, and FX math through shared decimal helpers rather than native floating-point division or multiplication.
+- **[log-presence-not-secrets]** Log boolean presence flags (`Boolean(secret)`) for credentials and tokens; never log secret values.
+- **[no-empty-string-as-undefined]** Validate required strings before helper calls and treat only `undefined` as omitted; never coerce `""` to `undefined` via truthiness (`val || undefined`).
+- **[keep-canonical-separate-from-display]** Persist and pass canonical raw values; apply display masks or formatting only on the read/render path and never derive originals from formatted strings.
+- **[hot-path-latency]** Keep hot execution paths free of avoidable sequential awaits, redundant allocations, or repeated lookups inside loops.
 
-- Prefer queries from more accessible to less accessible: `getByRole` first, `getByTestId` last.
-- Prefer behavior from the user perspective, not implementation details.
-- Keep queries separate from assertions for readability. Assign `screen.getBy...` results to variables first.
-- Use `user-event` when interaction matters. Use `fireEvent` only when user-event cannot drive the case.
-- Avoid magic strings. If a repeated string is needed, extract it to a well-named `SCREAMING_SNAKE_CASE` constant in the same test file.
-- Avoid comments that do not add value. Test code should mostly explain itself.
-- Do not assert on mocked component behavior that the mock itself defines. Assert that the mocked component is rendered when needed, usually through a test id.
-- If a mocked child receives a transformed value from the real logic under test, asserting that transformed value is acceptable.
-- Fixture values should be as close as possible to real data: UUID v4, real enum members, plausible amounts, not `'tx-123'` or `'user-1'`.
-- Integration tests should use the shared suite factory and call the generated client the way production does; do not invoke handlers directly or wrap them in test-only helpers.
-- Do not assert negatives for product or timeline choices, route constants, or other details that are not a hard contract.
-- Do not re-test behavior owned by another method or already covered in a related change; keep the spec scoped to the code under review.
-- Do not assert CSS class names or visual styling in unit tests; cover behavior, or drop the case.
-- Do not write tests that only assert a hardcoded constant or alias against itself.
-- Name tests for the product behavior, not a flag, unit, or leftover condition the change is removing.
+## Core — Style & conventions (`[style]`)
 
-## Accumulated learnings
+Apply on every diff during Pass 2.
 
-Read [`learnings/catalog.md`](learnings/catalog.md) before a ship verdict. Apply every catalog guideline whose category matches this diff (test files → tests; types/schemas → typing; and so on). Scan remaining categories when the change could hit them. The whole catalog binds, not only **Promoted: yes** rows.
+- **[real-contract-types]** Type values with the producing module's contract type directly; reserve `as` assertions for boundaries where narrowing is impossible.
+- **[schema-narrow-types]** Use schema-defined narrow types at validated boundaries rather than wide unions that upstream validation already constrained.
+- **[shared-constants-not-magic]** Import numeric defaults, limits, and timeouts from shared schemas or constants packages instead of hardcoding literals.
+- **[consume-original-shared-exports]** Import canonical lists, constants, and paths directly from their original shared module without local array copies or renaming re-exports.
+- **[colocate-related-code]** Keep types, helpers, and wiring that change together in the same module or folder.
+- **[extract-for-testability]** Extract pure branching or transformation logic into a dedicated helper when direct unit testing is simpler than driving the full caller.
+- **[avoid-thin-wrappers]** Inline single-expression checks at the call site when a wrapper function adds indirection without reuse or testability gain.
+- **[no-forced-shared-helpers]** Keep similar functions separate when their contracts, return shapes, or domain branches diverge enough that sharing requires mode flags or indirection.
+- **[single-return-formatters]** Structure pure formatter functions around one assignment path and a single `return` at the end.
+- **[extract-nullish-chains]** Assign multi-step `??` fallback chains to a named intermediate variable or helper so precedence is explicit.
+- **[extract-named-predicates]** Extract multi-clause `&&` / `||` domain conditions into a named boolean helper that states the domain question.
+- **[no-over-defensive-checks]** Trust invariants enforced earlier on the call path; omit guards for states that cannot occur there.
+- **[type-appropriate-operations]** Run string cleanup like `.trim()` only on branches where the value is not already validated as a non-padded type.
+- **[remove-redundant-type-checks]** Collapse redundant `typeof` branches when a single coercion handles every input case equivalently.
+- **[no-redundant-membership-guards]** Rely on the callback's declared type when iterating items produced from a canonical list; omit secondary `.includes()` checks.
+- **[remove-refactor-leftovers]** Delete unused parameters, dead wiring, and leftover inline objects after changing an implementation approach.
+- **[preserve-helpful-comments]** Keep comments that explain non-obvious domain invariants, contract quirks, or why an approach was chosen.
+- **[helper-docstrings]** Add a concise what-and-why docstring on helpers and public components whose purpose or variant options are not obvious from the signature alone.
+- **[precise-docstrings]** Name the exact producing service and data shape in docstrings rather than vague labels.
+- **[comment-regex-patterns]** Add a brief comment on each regex stating what pattern it matches and which contract it enforces.
 
-**Done:** every matching catalog guideline is a finding or explicitly N/A on the Catalog line. A ship verdict without that read is incomplete.
-
-## What not to do
-
-Stay on this diff's quality bar (typing, tests, duplication, catalog). Skip generic security hunts, invented edge cases, style nits when the block is sound, and praise or long summaries.
+---
 
 ## Output
 
-Keep the response short and findings-first.
-
-Use this shape:
+Keep the response short and findings-first. List all `[issue]` findings before `[style]` findings.
 
 ```markdown
-<highest-signal findings first, one bullet each>
+- [issue] [<rule-id>] <what is wrong, why it matters here, what to change>
+- [style] [<rule-id>] <what is wrong, why it matters here, what to change>
 
-Catalog: <matching catalog ids applied or N/A, one line>
+Catalog: core[, frontend, backend, database, testing] — <triggered rule-ids or none>
 
 What is fine:
-- <brief note only if worth saying>
+- <one or two notably solid points only if worth saying>
 
-Verdict: <short verdict>
+Verdict: <ship | fix style before ship | block — fix issues>
 ```
 
-**Done:** output matches this shape; the Catalog line is present; Verdict is not ship unless Catalog is filled.
+**Done:** Output matches this shape; `[issue]` findings precede `[style]` findings; `Catalog:` lists every domain catalog read plus triggered rule IDs (or `none`); `Verdict` is `ship` only when there are zero `[issue]` and zero actionable `[style]` findings.
 
 ## Finding style
 
-Each finding should say:
+Each finding states: (1) what is wrong, (2) why it matters in this codebase, and (3) what to change.
 
-1. what is wrong,
-2. why it matters in this codebase,
-3. what to change.
-
-Prefer concrete wording like:
-
-- `Uses \`any\` in a new path. Type this explicitly so the caller contract stays checkable. Replace it with <expected type>.`
-- `This guard is too defensive for a state that cannot happen here. Remove it and keep the main path direct.`
-- `This logic duplicates the mapper already present in <path>. Reuse that helper instead of adding a second copy.`
-- `This test reaches for \`getByTestId\` even though the element has a role and accessible name. Query it the way the user experiences it.`
-- `This assertion checks the mocked component output instead of the behavior under test. Assert the transformed prop or the presence of the mock, not what the mock was hardcoded to render.`
-
-## If the block is good
-
-Say so plainly. Mention only the one or two things that are notably solid, then give a short verdict.
+- `- [issue] [no-any] Uses \`any\` on the response mapper input. Callers lose compile-time contract checks when the schema changes. Type the parameter with \`OrderResponse\`.`
+- `- [issue] [validate-before-transaction] Opens \`db.transaction\` before checking the request payload. Invalid requests hold a pooled connection unnecessarily. Move the schema check above \`db.transaction\`.`
+- `- [style] [no-over-defensive-checks] Checks \`if (!user)\` after \`requireAuth\` already guaranteed the session. Remove the redundant guard to keep the main path direct.`
+- `- [style] [accessible-query-priority] Queries the submit button with \`getByTestId('submit-btn')\` even though it exposes a button role and label. Use \`getByRole('button', { name: /submit/i })\`.`

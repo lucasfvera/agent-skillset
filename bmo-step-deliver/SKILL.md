@@ -1,7 +1,7 @@
 ---
 name: bmo-step-deliver
-description: >- 
-  Use when the user wants agent work delivered with clear scope, verification, runnable commands, and a structured human review digest (mandatory template: review blocks with absolute paths, block-level + per-file prompts, provenance/conventions). When the task is plan-shaped with multiple units (U1/U2/…, explicit numbered steps, or agreed slices), mandatory stop after each unit—full **review digest** (§6), then wait for the user to say continue (or equivalent) before implementing the next slice; do not batch slices in one turn unless the user explicitly opts into single-pass up front. Git commits require explicit approval per repository (or post–review-digest `continue` for that same repo’s slice); never commit repo B because the user asked to commit repo A then “continue” with work in B. Skipped scope-shaping questions block until re-ask or explicit defaults token; on continue, `/bmo-commit` the finished slice when applicable, then start the next unit only.
+description: Delivers scoped implementation slices one unit at a time with narrow verification, runnable commands, and a structured review digest.
+disable-model-invocation: true
 ---
 
 # Step-deliver
@@ -83,9 +83,9 @@ After **each** unit in sliced mode: complete the **review digest** (§6), list *
 
 ---
 
-## Unanswered scope questions (AskQuestion / clarifications)
+## Unanswered scope questions (clarifications)
 
-If a **scope-shaping question** was asked (structured `AskQuestion`, numbered options, or equivalent) and the user **skipped it**, left it blank, or did not pick an option:
+If a **scope-shaping question** was asked (structured question tool, numbered options, or equivalent) and the user **skipped it**, left it blank, or did not pick an option:
 
 - **Do not invent defaults** for those answers in the plan or implementation.
 - **Re-ask once** with a single forced-choice question, **or** require an explicit token from the user such as **`defaults: yes`** (or a one-line “use defaults for skipped questions: A/B/C”) before proceeding.
@@ -98,7 +98,7 @@ Until that is resolved, treat the affected slice as **blocked**: no plan that de
 
 When the user **changes direction** after a plan exists (narrower/wider scope, different transport, “do not touch X”, “defer docs”, etc.):
 
-1. **Update the plan artifact** (e.g. `.cursor/plans/*.plan.md` or the attached plan file): add a short **Revision** block with date or turn number, **new in/out scope**, and what superseded the prior text.
+1. **Update the plan artifact** (e.g. `.plans/*.plan.md`, `~/.agents/plans/*.plan.md`, or the attached plan file): add a short **Revision** block with date or turn number, **new in/out scope**, and what superseded the prior text.
 2. In chat, **restate one paragraph**: what is in scope now, what is explicitly out, and which prior assumptions are void.
 
 Do not leave the written plan stale while code follows the new understanding.
@@ -127,7 +127,7 @@ Do not leave the written plan stale while code follows the new understanding.
 
 6. **Git commits: explicit approval per repository (hard gate)** — Do **not** run `git commit` in a repository unless **one** of these is true:
 
-   - The user **explicitly** asked to commit **that repository** in the same turn (e.g. “commit the tx changes”, “commit in roxtarsverse”, `/bmo-commit` with clear intent for that root), **or**
+   - The user **explicitly** asked to commit **that repository** in the same turn (e.g. “commit the api changes”, “commit in backend”, `/bmo-commit` with clear intent for that root), **or**
    - **Sliced-mode `continue`:** the user sent **`continue`** (or an agreed equivalent like “next slice, commit it”) **after** you finished the **review digest** (§6) for a slice, and you are committing **only that slice’s changes in that same repo** per [Continue: commit slice, then next unit](#continue-commit-slice-then-next-unit).
 
    **Anti-patterns (never do this):**
@@ -157,6 +157,8 @@ If the repository documents architecture or testing conventions, read what appli
 
 Stay within scope. Avoid unrelated cleanup unless the user asked or it blocks the change.
 
+- **Slice size & test co-location:** Target **~100 LOC of production code (soft ceiling ~200 LOC, excluding tests, lockfiles, snapshots, and generated code)** per unit, and **always include the unit's tests in the same slice**. If production code grows past ~200 LOC mid-implementation, split the remaining vertical behavior (with its tests) into `Un+1` via [Mid-flight scope correction](#mid-flight-scope-correction) rather than shipping an oversized slice or separating tests from implementation.
+
 ### 3) Verify
 
 Apply the **correct workspace hard gate** from [Operating principles](#operating-principles) before running any command.
@@ -173,7 +175,7 @@ Pick the **narrowest meaningful proof**:
 
 **Codegen / generators:** If a step runs codegen (Protobuf, OpenAPI, GraphQL, etc.), treat output layout shifts as normal: run generation, then **search for broken imports** and fix call sites before declaring done.
 
-**Stale generator caches:** If regenerated output still does not match the edited schema or proto (same RPCs/messages as before), the tool may be reading a **cached copy** instead of your latest files. Check the generator config for a **cache directory** (example: Protorox `cacheDir` / `.proto-cache`), delete the relevant cached artifact or clear the cache, regenerate, and **mention this in the review digest** so reviewers know the checked-in generated files truly reflect the source.
+**Stale generator caches:** If regenerated output still does not match the edited schema or proto (same RPCs/messages as before), the tool may be reading a **cached copy** instead of your latest files. Check the generator config for a **cache directory** (example: `cacheDir` / `.proto-cache`), delete the relevant cached artifact or clear the cache, regenerate, and **mention this in the review digest** so reviewers know the checked-in generated files truly reflect the source.
 
 **Tool output vs config:** If CLI warnings contradict expectations (e.g. a “generation” flag is a no-op), note it in the review digest (§6)—config examples elsewhere may not match the installed tool version.
 
@@ -209,22 +211,25 @@ End every unit with a single clearly labeled section titled **`## Review digest`
 
 #### When to use absolute paths
 
-- **Multi-root Cursor workspace** or changes across **more than one git root**: list every file as an **absolute path**. Append the repo-relative path in parentheses if helpful, e.g. `` `/Users/me/proj/foo/apps/kyc/src/x.ts` (`apps/kyc/src/x.ts`) ``.
+- **Multi-root workspace** or changes across **more than one git root**: list every file as an **absolute path**. Append the repo-relative path in parentheses if helpful, e.g. `` `/Users/me/proj/foo/apps/kyc/src/x.ts` (`apps/kyc/src/x.ts`) ``.
 - **Single repo, single root**: absolute paths are still allowed; **repo-relative** paths are acceptable if there is no ambiguity.
 
 Never rely only on bare filenames (`Notification.ts`) when more than one package could contain that name.
 
 #### Template (copy and fill; do not omit headings)
 
-Use **one block per coherent concern** (e.g. “Schema / types”, “Hermod publish”, “Window consumer”, “Tests”, “Docs”). Order blocks in **dependency / review order** (types/contracts before callers).
+Use **one block per coherent concern** (e.g. “Schema / types”, “Publisher”, “Consumer”, “Tests”, “Docs”). Order blocks in **dependency / review order** (types/contracts before callers).
 
 ```markdown
 ## Review digest
 
 **Scope:** <one sentence: what this unit delivered; what was deferred.>
+**Decisions & backing docs:** <key trade-offs or domain assumptions made in this slice, linked to the backing spec, ADR, schema, or sibling file.>
+**Failure modes & boundary risks:** <runtime contracts, error/status mappings, DB transactions, or race conditions that warrant human scrutiny.>
+**Unverified gaps:** <what automated tests could not prove (e.g. live upstream API, prod data shape, manual UX check).>
 
 ### Block A — <short name: what this cluster is about>
-**What this block is:** <one line: e.g. “Shared notification enums and payload shapes consumed by Hermod and Window.”>
+**What this block is:** <one line: e.g. “Shared notification enums and payload shapes consumed by publisher and web client.”>
 **Git root:** `<absolute path to .git>` (if multiple repos touched)
 **What to review in this block:** <1–3 sentences: cross-file invariant, contract, or ordering reviewers must sanity-check once for the whole block—not repeated per file.>
 **Files:**
@@ -281,7 +286,7 @@ Optional bullets (attach to the right block):
 
 **Sliced migrations (optional pattern)**
 
-For transport or API moves (e.g. Rabbit → gRPC), a coherent sequence often reduces risk: **centralize behavior in domain/service** → **extend contract + codegen** → **add adapters/handlers** → **integration tests** → **remove deprecated surface**. When using slices, say **which slice** you are in and **what must stay working** until the next slice lands.
+For transport or API moves (e.g. queue → RPC), a coherent sequence often reduces risk: **centralize behavior in domain/service (with unit tests)** → **extend contract + codegen** → **add adapters/handlers (with integration tests)** → **remove deprecated surface**. When using slices, say **which slice** you are in and **what must stay working** until the next slice lands.
 
 ### 7) Pause for confirmation (mandatory for sliced mode)
 
@@ -301,7 +306,7 @@ This flow commits **only** the slice the user acknowledged, in **the same git re
 
 If the user sends **`continue`** (or clear equivalent: “next slice”, “proceed”) **and** there is a **next slice** still to do **or** you are confirming the slice is done before closing:
 
-1. **Commit the completed slice first** (in **that** repository only) using the **`/bmo-commit`** skill ([`bmo-commit`](../bmo-commit/SKILL.md)): stage **only** that slice’s paths (`git add …`—no file edits, no normalize/lint-fix); then follow that skill—if `git diff --cached` is empty, **stop** and tell the user to stage; otherwise inspect `git diff --cached`, infer type and scope, compose the message, run `git commit`. If there is nothing left to commit (already committed), skip to step 2.
+1. **Commit the completed slice first** (in **that** repository only) using the **`/bmo-commit`** skill ([`bmo-commit`](../bmo-commit/SKILL.md)): stage **only** that slice’s paths (`git add …`—no file edits, no normalize/lint-fix); then follow that skill—if `git diff --cached` is empty, **stop** and tell the user to stage; otherwise inspect `git diff --cached`, compose the message per the repository's commit convention, run `git commit`. If there is nothing left to commit (already committed), skip to step 2.
 2. If there is **another slice** in the plan, **then** start implementation for that next slice (return to step **Align scope** for that unit only, or a short delta if scope unchanged).
 
 If there is **no next slice** and nothing left to implement, **`continue`** after the final **review digest** may mean “commit if needed, then done”—still run **`/bmo-commit`** when there are uncommitted slice changes **in the repo the user means**.
@@ -321,6 +326,6 @@ If verification fails:
 
 ## Integration with other skills
 
-- **`/bmo-commit`** / **`bmo-commit`** — When the user asks for a commit, says **`continue`** under [Continue: commit slice, then next unit](#continue-commit-slice-then-next-unit), or `/commit`, follow that skill: **no edits or auto-fix to files**; stage only when the user asked or when this skill’s continue flow requires staging the slice; staged diff empty → stop; else inspect `git diff --cached`, conventional type/scope, then `git commit`.
+- **`/bmo-commit`** / **`bmo-commit`** — When the user asks for a commit, says **`continue`** under [Continue: commit slice, then next unit](#continue-commit-slice-then-next-unit), or `/commit`, follow that skill: **no edits or auto-fix to files**; stage only when the user asked or when this skill’s continue flow requires staging the slice; staged diff empty → stop; else inspect `git diff --cached`, match the repository's commit convention, then `git commit`.
 - **`bmo-sync-repo-documentation`** (or repo doc-sync equivalent) — After changing scripts, public APIs, or paths listed in onboarding docs, reconcile **README / manifests / CI** so the review handoff does not repeat stale commands (often paired with the **Docs and manifests** bullet above).
 - **Planning** — If the task is large or ambiguous, propose planning mode before heavy implementation (whether sliced or not).

@@ -1,15 +1,15 @@
 ---
-name: bmo-linear-pipeline
-description: Triages a Linear issue and, on pickup, hands off to bmo-builder for plan through PR.
+name: bmo-issue-pipeline
+description: Triages an issue and, on pickup, hands off to bmo-builder for plan through PR.
 disable-model-invocation: true
-argument-hint: "[linear issue url]"
+argument-hint: "[issue url, TEAM-123, or owner/repo#123]"
 ---
 
 Triage, then Gate 1, then `bmo-builder` in this same turn. Builder starts only after Gate 1 passes. Builder completion includes proven isolated worktrees before any implementation edit.
 
-When invoking child skills, **read their `SKILL.md` first** from `~/.cursor/skills/<name>/SKILL.md` and follow them.
+When invoking child skills, **read their `SKILL.md` first** from the sibling directory (`../<name>/SKILL.md`) and follow them.
 
-**Input:** `$ARGUMENTS` is the Linear issue URL or identifier (e.g. `ENG-123`). If missing, ask once for the link, then stop until provided.
+**Input:** `$ARGUMENTS` is an issue URL or identifier (e.g. `ENG-123`, `owner/repo#42`, `#42`, or a Linear/GitHub link). If missing, ask once for the issue link or identifier, then stop until provided.
 
 ---
 
@@ -24,9 +24,8 @@ At start, note:
 
 ## Phase 1 — Triage (`bmo-triage`)
 
-1. Read and follow [`bmo-triage`](../bmo-triage/SKILL.md) using the Linear issue from `$ARGUMENTS`.
+1. Read and follow [`bmo-triage`](../bmo-triage/SKILL.md) using the issue from `$ARGUMENTS`.
 2. Produce the triage output (full template or early-exit template).
-3. **Chat title (recommended).** Call `rename_chat` (`cursor-app-control`) with `[ISSUE-ID] [feature or minimal description]`, e.g. `DEV-1234 Pending deposit repeated 3 times`. Use the Linear identifier as-is and a tightened issue title (strip a leading id if the title repeats it). If rename fails, is aborted, or the conversation cannot be identified, continue.
 
 **Done:** triage template is in chat.
 
@@ -78,7 +77,7 @@ Read [`bmo-builder`](../bmo-builder/SKILL.md) from the first line and execute it
 Pass this handoff as the builder's input:
 
 ```
-Identifier: [ISSUE-ID]
+Identifier: [IDENTIFIER]
 Title: [title]
 Type: [Bug / Feature / Chore]
 Link: [url]
@@ -108,8 +107,8 @@ When Gate 1 stops the pipeline, output:
 ## Findings
 [2–4 sentences: status seen, why no work, root cause if investigated, repos touched if any]
 
-## Linear comment
-[Copy-paste block for the issue — concise, professional, no agent jargon]
+## Issue comment
+[Copy-paste block for the tracker — concise, professional, no agent jargon]
 
 ---
 _Complexity / ROI from triage if applicable._

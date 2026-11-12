@@ -6,7 +6,7 @@
 bmo-update-block-reviewer-skill/inbox/pending/{id}.md
 ```
 
-Path from respond-pr-review skill:
+Path from `bmo-respond-pr-review`:
 
 ```
 ../bmo-update-block-reviewer-skill/inbox/pending/
@@ -16,7 +16,7 @@ Path from respond-pr-review skill:
 
 `{ISO8601 compact}-{owner}-{repo}-pr{number}`
 
-Example: `20260629T143022Z-roxom-markets-roxtopia-pr833`
+Example: `20260629T143022Z-acme-web-pr412`
 
 Use UTC. If the same PR is captured twice in one second, append `-2`, `-3`, etc.
 
@@ -53,13 +53,13 @@ One `## Thread {n}` per handled thread. Include:
 
 - Every thread that received a reply in step 7.
 - Block-review findings that changed the fix (note in resolution if relevant).
-- Do **not** capture bot-only threads unless the user opted in.
+- Omit bot-only threads unless the user opted in.
 
-## What not to do
+## Boundaries
 
-- Do not abstract to guidelines here. That is the updater skill's job.
-- Do not set `actionedAt` or move files. Only the updater touches `actioned/`.
-- Do not fetch GitHub again if the session already has thread text.
+- Keep captures raw; abstraction into `domain` and `tier` rules belongs to `bmo-update-block-reviewer-skill`.
+- Leave `actionedAt` as `null` in `inbox/pending/`; only the updater moves files to `inbox/actioned/`.
+- Reuse thread text already in session context without re-fetching from GitHub.
 
 ## Template
 

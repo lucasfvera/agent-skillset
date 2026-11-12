@@ -1,181 +1,95 @@
 ---
 name: bmo-update-block-reviewer-skill
-description: >-
-  Processes pending session captures from bmo-respond-pr-review in
-  inbox/pending/, distills them into abstract guidelines, dedupes against the
-  learnings catalog, promotes durable rules into bmo-block-reviewer when warranted,
-  and moves captures to inbox/actioned/. Use when the user invokes
-  /bmo-update-block-reviewer-skill or asks to improve the block reviewer from
-  accumulated PR feedback.
+description: Distills pending PR review captures into domain- and tier-classified rules for bmo-block-reviewer.
 disable-model-invocation: true
 argument-hint: "[optional session id or filename fragment; default all pending]"
 ---
 
 # Update block reviewer from PR feedback
 
-Turn **pending inbox captures** into abstract guidelines for [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md). Keep this skill thin. Store durable rules in [`../bmo-block-reviewer/learnings/catalog.md`](../bmo-block-reviewer/learnings/catalog.md).
-
-**Typical trigger:** run in a **separate session** after one or more [`bmo-respond-pr-review`](../bmo-respond-pr-review/SKILL.md) runs. Each respond session writes to [inbox/pending/](inbox/pending/).
+Turn **pending inbox captures** from [`bmo-respond-pr-review`](../bmo-respond-pr-review/SKILL.md) into deduplicated review rules for [`bmo-block-reviewer`](../bmo-block-reviewer/SKILL.md) and its domain catalogs (`frontend`, `backend`, `database`, `testing`). Audit state and unpromoted 1-source style candidates live in [`ledger.md`](ledger.md), never in the reviewer's context.
 
 **Input:** `$ARGUMENTS` is an optional session `id` or filename fragment. If omitted, process **all** files in `inbox/pending/`.
 
-**No GitHub fetch in the default path.** Source material is the captured session files.
+**Default source:** local files in `inbox/pending/*.md` (see [references/session-capture.md](references/session-capture.md)). Use [references/fetch-pr-feedback.md](references/fetch-pr-feedback.md) only when recovering a missing capture.
 
 ---
 
-## Data shapes
-
-### Session capture (`inbox/pending/*.md`)
-
-Written by respond-pr-review. See [references/session-capture.md](references/session-capture.md).
-
-| Field | Notes |
-|-------|-------|
-| `id` | Filename stem |
-| `status` | `pending` until this skill runs |
-| `capturedAt` | When respond-pr-review finished |
-| `actionedAt` | Set when this skill finishes processing |
-| `pr` | `owner/repo#number` |
-| `threads[]` | Verbatim reviewer comment + resolution per thread |
-
-### Learning (catalog output)
+## Learning shape
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | slug | kebab-case, stable across sessions |
-| `category` | enum | `typing` \| `tests` \| `architecture` \| `patterns` \| `style` \| `performance` \| `other` |
-| `guideline` | string | One imperative rule. No paths, no PR comment quotes |
-| `rationale` | string | Why the rule matters (1–2 sentences) |
-| `sources` | string[] | `owner/repo#number` only |
-| `promoted` | boolean | `true` when copied into `bmo-block-reviewer/SKILL.md` |
+| `domain` | enum | `core` \| `frontend` \| `backend` \| `database` \| `testing` |
+| `tier` | enum | `issue` (correctness, contract, security, perf, false/flaky test) \| `style` (structure, conventions, readability, test ergonomics) |
+| `rule` | string | One-line positive-target rule + brief why (`- **[id]** <what to write>; <why/guardrail>.`). No file paths or verbatim PR quotes |
+| `sources` | string[] | `owner/repo#number` list stored only in [`ledger.md`](ledger.md) |
+| `status` | enum | `candidate` (1-source `style` rule waiting in `ledger.md`) \| `promoted` (active in `bmo-block-reviewer`) |
 
 ---
 
-## Order of operations
+## Procedure
 
-```
-1. List pending session captures
-2. Load selected captures
-3. Extract abstract learnings (all threads, all sessions)
-4. Dedupe across sessions and against catalog
-5. Append net-new learnings to catalog
-6. Promote to block-reviewer (only when warranted)
-7. Mark captures actioned (move pending → actioned)
-8. Report back in chat
-```
-
----
-
-## 1. List pending captures
+### 1. List and load pending captures
 
 ```bash
-ls ~/.cursor/skills/bmo-update-block-reviewer-skill/inbox/pending/*.md 2>/dev/null
+ls "$SKILL_DIR"/inbox/pending/*.md 2>/dev/null
 ```
 
-If `$ARGUMENTS` is set, filter to matching `id` or filename fragment.
+Filter by `$ARGUMENTS` when provided. If no files match, report "no pending captures" and stop. Read every selected file in full and collect all threads with their `pr` (`owner/repo#number`) and session `id`.
 
-If none match, report "no pending captures" and stop.
+**Done:** Every matching capture in `inbox/pending/` is loaded into memory.
 
----
+### 2. Extract abstract rules (`domain` + `tier`)
 
-## 2. Load captures
+Read [references/extraction-rules.md](references/extraction-rules.md). For each thread:
 
-Read every selected file in full. Collect all threads across sessions into one working set. Note each thread's source `pr` and session `id` for traceability.
+1. Ask: **what general rule would have caught or prevented this feedback?**
+2. Classify **`domain`** (`core`, `frontend`, `backend`, `database`, `testing`) by the file layer the rule governs.
+3. Classify **`tier`**:
+   - **`issue`** when violating the rule causes wrong runtime behavior, broken contracts/status codes, security/error leaks, DB connection/lock waste, hot-path latency, or flaky/vacuous tests.
+   - **`style`** when the code works and performs fine, and the rule encodes structural, layout, DRY, naming, or test-readability taste.
+4. Phrase the rule positively (state what to write first). Skip one-off typos or purely local fixes.
 
----
+**Done:** Every extractable thread is mapped to `{ id, domain, tier, rule, source }`.
 
-## 3. Extract abstract learnings
+### 3. Dedupe against batch and `ledger.md`
 
-Read [references/extraction-rules.md](references/extraction-rules.md) before extracting.
+Read [`ledger.md`](ledger.md) and the target domain files in [`../bmo-block-reviewer/`](../bmo-block-reviewer/SKILL.md).
 
-For each thread across **all** pending sessions:
+1. **Within the batch:** Merge threads from different sessions that express the same rule and combine their `sources`.
+2. **Against `ledger.md`:** When `id` or intent matches an existing row (candidate or promoted), append the new `owner/repo#number` to `sources` instead of creating a second ID.
 
-1. Read reviewer comment and resolution from the capture file.
-2. Ask: **what general rule would have caught or prevented this feedback?**
-3. Write one `guideline` — team-wide, not a description of the fix.
-4. Drop thread-specific detail.
+**Done:** Zero duplicate rule intents exist across the batch, `ledger.md`, and `bmo-block-reviewer`.
 
-Process **dismissed** threads when they encode a standing preference.
+### 4. Promote or stage (`references/promotion-rules.md`)
 
----
+Read [references/promotion-rules.md](references/promotion-rules.md) and apply the tier threshold:
 
-## 4. Dedupe
+- **`tier: issue` (1+ PR source, durable & actionable):**
+  1. Append `- **[id]** <rule>` under `## 1. Strict issues ([issue])` (or `## Core — Strict issues ([issue])` in `SKILL.md`) in the matching domain file:
+     - `core` → [`../bmo-block-reviewer/SKILL.md`](../bmo-block-reviewer/SKILL.md)
+     - `frontend` → [`../bmo-block-reviewer/references/frontend.md`](../bmo-block-reviewer/references/frontend.md)
+     - `backend` → [`../bmo-block-reviewer/references/backend.md`](../bmo-block-reviewer/references/backend.md)
+     - `database` → [`../bmo-block-reviewer/references/database.md`](../bmo-block-reviewer/references/database.md)
+     - `testing` → [`../bmo-block-reviewer/references/testing.md`](../bmo-block-reviewer/references/testing.md)
+  2. Record the rule under **Active promoted rules** in [`ledger.md`](ledger.md).
+- **`tier: style` with 1 PR source:**
+  1. Add the row under **Candidates** in [`ledger.md`](ledger.md) using [templates/learning-entry.md](templates/learning-entry.md). Leave `bmo-block-reviewer` files untouched.
+- **`tier: style` reaching 2+ PR sources (newly merged candidate or multi-PR batch, or explicit user request):**
+  1. Remove the row from **Candidates** in [`ledger.md`](ledger.md) and add it to **Active promoted rules**.
+  2. Append `- **[id]** <rule>` under `## 2. Style & conventions ([style])` (or `## Core — Style & conventions ([style])` in `SKILL.md`) in the matching domain file.
 
-Read [`../bmo-block-reviewer/learnings/catalog.md`](../bmo-block-reviewer/learnings/catalog.md).
+**Done:** Every qualifying `issue` (1+ source) and recurring `style` rule (2+ sources) is written to its single domain file and indexed as promoted in `ledger.md`; every 1-source `style` rule sits only in `ledger.md` Candidates.
 
-Dedupe in two passes:
+### 5. Mark captures actioned and report
 
-1. **Within the batch** — merge threads from different sessions that express the same rule into one learning before writing.
-2. **Against catalog** — merge when `id` or intent matches an existing entry; append `owner/repo#number` to `sources`.
+For each processed capture file, set frontmatter `status: actioned` and `actionedAt` to current UTC ISO8601, then move the file from `inbox/pending/` to `inbox/actioned/`.
 
-Repeated feedback across sessions strengthens a rule but must not duplicate catalog rows.
-
----
-
-## 5. Append to catalog
-
-Add only net-new learnings. Use [templates/learning-entry.md](templates/learning-entry.md).
-
-Group by `category`. The catalog may grow; `bmo-block-reviewer/SKILL.md` must not.
-
----
-
-## 6. Promote to block-reviewer
-
-Read [references/promotion-rules.md](references/promotion-rules.md).
-
-Promotion is **rare**. Cross-session repetition (same rule from 2+ `sources`) is a promotion signal per promotion rules.
-
-When promoting, add one bullet under the matching section in `bmo-block-reviewer/SKILL.md` and set `promoted: true` on the catalog entry.
-
----
-
-## 7. Mark captures actioned
-
-For **each** processed session file:
-
-1. Set frontmatter `status: actioned` and `actionedAt` to current UTC ISO8601.
-2. **Move** the file from `inbox/pending/` to `inbox/actioned/` (same filename).
-
-Do not delete captures. `inbox/actioned/` is the audit trail.
-
-If extraction fails for one file, leave it in `pending/` and report which file was skipped.
-
----
-
-## 8. Chat report
-
-- Pending captures processed (ids)
-- Sessions actioned (moved to `inbox/actioned/`)
-- Thread count across sessions
-- New catalog learnings (id + one-line guideline)
-- Merged into existing entries (id + new sources)
-- Cross-session dedupes (same rule from N sessions)
-- Promoted to block-reviewer (if any)
+Report in chat:
+- Captures actioned (IDs and thread count)
+- Newly promoted rules (`[tier] [domain] [id]` + target file)
+- New or updated `style` candidates staged in `ledger.md` (`[domain] [id]` + source count)
 - Skipped threads (too local or already covered)
-- Left in pending (if any failed)
 
----
-
-## Checklist
-
-```
-- [ ] Pending captures listed
-- [ ] All selected captures loaded
-- [ ] Extraction rules applied (abstract guidelines only)
-- [ ] Batch + catalog dedupe done
-- [ ] Catalog updated
-- [ ] Block reviewer touched only per promotion rules
-- [ ] Every processed capture marked actioned and moved
-- [ ] Chat report posted
-```
-
----
-
-## Additional reference
-
-- Session capture format: [references/session-capture.md](references/session-capture.md)
-- Extraction: [references/extraction-rules.md](references/extraction-rules.md)
-- Promotion: [references/promotion-rules.md](references/promotion-rules.md)
-- Catalog: [`../bmo-block-reviewer/learnings/catalog.md`](../bmo-block-reviewer/learnings/catalog.md)
-- Recovery fetch (only if a capture is missing): [references/fetch-pr-feedback.md](references/fetch-pr-feedback.md)
+**Done:** All processed captures are in `inbox/actioned/` with `status: actioned`, and the summary report is posted.
