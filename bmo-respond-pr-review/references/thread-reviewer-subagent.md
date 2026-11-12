@@ -1,6 +1,6 @@
 # Thread reviewer subagent prompt
 
-Copy into the `Task` tool `prompt` field. Replace placeholders. One subagent **per review item solution** that changes code.
+Render this template with concrete values and pass it to a read-only subagent. One subagent **per review item solution** that changes code.
 
 ---
 
@@ -8,10 +8,10 @@ You are reviewing **one PR review item solution** before it is published on GitH
 
 ## Your job
 
-1. Read and follow `~/.cursor/skills/bmo-block-reviewer/SKILL.md`.
-2. Read `~/.cursor/skills/bmo-block-reviewer/learnings/catalog.md` and apply every matching guideline before a ship verdict.
-3. Inspect the **actual git diff** for this review item's changed files. Do not rely on handoff text alone.
-4. Return findings in the **bmo-block-reviewer output shape**, including the **Catalog:** line.
+1. Read and follow `{{SKILLS_DIR}}/bmo-block-reviewer/SKILL.md`.
+2. Load only the domain catalog files under `{{SKILLS_DIR}}/bmo-block-reviewer/references/` (`frontend.md`, `backend.md`, `database.md`, `testing.md`) triggered by this review item's changed files.
+3. Inspect the **actual git diff** for this review item's changed files. Use handoff text as context only.
+4. Run **Pass 1 (`[issue]`)** before **Pass 2 (`[style]`)** and return findings in the `bmo-block-reviewer` output shape.
 
 ## Review item context
 
@@ -44,14 +44,14 @@ git diff {{DIFF_BASE}} -- {{PATHS}}
 The solution must:
 
 - Address the review comment (or the valid part, if partially valid).
-- Pass the full `bmo-block-reviewer` bar, including matching catalog guidelines.
-- Match sibling patterns; skip duplicate helpers.
+- Pass both **Pass 1 (`[issue]`)** and **Pass 2 (`[style]`)** in `bmo-block-reviewer` and the loaded domain catalogs.
+- Match sibling patterns without adding duplicate helpers.
 
 ## Output requirements
 
-- Findings-first bullets. Each finding: what is wrong, why it matters here, what to change.
-- **Catalog:** matching catalog ids applied or N/A, one line.
-- **Verdict:** one short line (e.g. "Good to ship", "Fix typing before publish"). Not ship unless Catalog is filled.
-- If diff unavailable, say review is limited and list what you could not verify.
+- Findings-first bullets ordered **`[issue]` before `[style]`** (`- [issue] [<rule-id>] ...`, `- [style] [<rule-id>] ...`); each states what is wrong, why it matters here, and what to change.
+- **Catalog:** `core[, frontend, backend, database, testing] — <triggered rule-ids or none>`, one line.
+- **Verdict:** `<ship | fix style before ship | block — fix issues>`. Not `ship` unless **Catalog** is filled and zero `[issue]` or actionable `[style]` findings remain.
+- If the diff is unavailable, state that the review is limited and list what could not be verified.
 
-Do not implement fixes. Review only.
+Review only; leave file edits to the parent orchestrator.

@@ -1,6 +1,6 @@
 ---
 name: bmo-document-html
-description: Produces long-form technical documentation as a self-contained HTML page (semantic structure, readable typography, light/dark CSS) with a graphics-first bias—inline SVG, Mermaid, or styled layout for data flows, user journeys, service communication, and before/after topologies—instead of Markdown when clarity and presentation matter. Use when the user asks for architecture write-ups, handoff docs, migration notes, ADR-style narratives, or “document this” as a durable artifact; when they invoke bmo-document-html or /bmo-document-html; or when they want HTML over .md for sharing, printing, or richer layout without a doc site build step.
+description: Produces standalone, graphics-first technical documentation as a self-contained HTML page with diagrams, semantic layout, and light/dark styling.
 disable-model-invocation: true
 ---
 
@@ -37,7 +37,7 @@ For **short** answers in chat, plain Markdown or prose in the reply is enough—
 6. **Figures** — Use `<figure>` / `<figcaption>` for diagrams; `<table>` with `<th scope="col">` for contracts.
 7. **Identifiers** — Wrap code tokens and hostnames with `translate="no"` where auto-translation would garble them.
 8. **External JS** — If using Mermaid (or similar), load from a **versioned CDN URL**, `securityLevel: "strict"`, `startOnLoad: false` then `await mermaid.run({ querySelector: ".mermaid" })` after `initialize`. Note that **`file://` may block CDN**; mention “serve locally or use https” in a small aside.
-9. **Two-way / exploratory artifacts** — When the user wants sliders, bucketing UI, or live previews, end with an explicit **export affordance** (“Copy as JSON”, “Copy as prompt”, “Copy diff”) so the browser session feeds back into the editor or Claude, per the playgrounds pattern in [reference.md](reference.md#two-way-interaction-and-playgrounds).
+9. **Two-way / exploratory artifacts** — When the user wants sliders, bucketing UI, or live previews, end with an explicit **export affordance** (“Copy as JSON”, “Copy as prompt”, “Copy diff”) so the browser session feeds back into the editor or agent, per the playgrounds pattern in [reference.md](reference.md#two-way-interaction-and-playgrounds).
 10. **Web Interface Guidelines** — Before finalizing UI polish on the page itself, fetch current rules from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md` and fix obvious violations (focus, motion, semantics). See [reference.md](reference.md#web-interface-guidelines).
 
 ## Document skeleton (minimal)
@@ -54,7 +54,7 @@ Fuller rationale, HTML-vs-Md notes, **diagram playbook**, and source article: [r
 
 - Open the file in a browser (or `python -m http.server` from parent) and confirm layout, TOC anchors, and **every diagram** (Mermaid/SVG/CSS layout) renders.
 - For flow-, architecture-, or migration-shaped docs, confirm there is at least **one** clear visual for the hardest concept (not only tables of text).
-- Run `read_lints` only if the repo tracks HTML; otherwise quick manual pass: keyboard tab to skip link and first in-doc link.
+- Run the repository's HTML linter/validator if the repo tracks HTML; otherwise quick manual pass: keyboard tab to skip link and first in-doc link.
 
 ## Anti-patterns
 

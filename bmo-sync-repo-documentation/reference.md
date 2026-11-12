@@ -18,9 +18,9 @@ Use before release or when doing a full-doc audit. Skip rows that do not apply t
 
 ## Agent / editor docs
 
-- [ ] **AGENTS.md** / **CLAUDE.md** (and similar) — same constraints as README for commands and paths
-- [ ] **`.cursor/rules/**`** — examples and file paths match repo
-- [ ] **Project `.cursor/skills/**/SKILL.md`** — if present, workflows reference real tools
+- [ ] **AGENTS.md** / **CLAUDE.md** / **GEMINI.md** (and similar) — same constraints as README for commands and paths
+- [ ] **Project rules** (`.agents/**`, `.cursor/rules/**`, `.claude/**`, `.gemini/rules/**`) — examples and file paths match repo
+- [ ] **Project skills** (`**/skills/**/SKILL.md` in repo) — if present, workflows reference real tools and scripts
 
 ## Accuracy vs code
 

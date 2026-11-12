@@ -1,21 +1,25 @@
 ---
 name: bmo-triage
-description: Triages a Linear issue into complexity, Kano user value, importance, and ROI. Blocks when acceptance criteria are not explicit or derivable; skips unreachable or already-closed issues.
+description: Triages an issue into complexity, Kano user value, importance, ROI, and automated pickup readiness.
 disable-model-invocation: true
-argument-hint: "[linear issue url]"
+argument-hint: "[issue url, TEAM-123, or owner/repo#123]"
 ---
 
 # Triage (bmo)
 
-Triage output only: fetch the Linear issue, score it, emit the template.
+Triage output only: resolve the issue, score it, emit the template. Leave all workspace files untouched.
 
 ## Workflow
 
 ### 1) Resolve the issue
 
-1. Extract identifier from the link (`ENG-123`, `ROX-456`, etc.) or use the identifier directly.
-2. Fetch issue data via **Linear MCP** (preferred). If tools are missing or auth fails, call `mcp_auth` once and retry. Fallback: `gh` if the issue is linked to GitHub, or ask the user to paste title + description.
-3. Read at minimum: **title**, **description**, **status**, **priority**, **labels**, **comments** (recent), **linked PRs**, **project/team**, **acceptance criteria** (dedicated field, checklist, or description).
+Route by input shape and load **only** the matching adapter:
+
+- **Linear** (`linear.app` URL or `[A-Z]{2,10}-\d+` key such as `ENG-123`) → read [`references/linear.md`](references/linear.md).
+- **GitHub Issue** (`github.com/.../issues/<n>`, `owner/repo#<n>`, or `#<n>` inside a git checkout) → read [`references/github.md`](references/github.md).
+- **Other tracker URL / key, or pasted text** → fetch via any configured tracker MCP or CLI in the environment; if `$ARGUMENTS` already contains the issue text, score it directly; if neither is available, ask once for title + description and stop.
+
+Read at minimum: **identifier**, **url** (or `—`), **title**, **description**, **status**, **priority / urgency signals**, **labels**, **recent comments**, **linked PRs**, **project / repo**, and **acceptance criteria** (dedicated field, checklist, or description).
 
 **Done:** identifier resolved and those fields read, or fetch failed (then step 2).
 
@@ -28,9 +32,9 @@ Stop and emit only the **Early exit** template when **any** of these is true:
 | Issue not found, private without access, or fetch failed | `Skip — unreachable` |
 | Status is terminal / no work expected | `Skip — already done` |
 
-Treat as **terminal** when Linear `statusType` is `completed` or `canceled`, or the status name matches (case-insensitive): `Done`, `Completed`, `Ready for release`, `Canceled`, `Cancelled`, `Duplicate`, `Won't fix`, `Wont fix`, `Archived`, `Released`, `Deployed` (when clearly shipped).
+Treat as **terminal** when the tracker state is closed/completed/canceled (e.g. GitHub `CLOSED`, Linear `completed` or `canceled`), or the status name matches (case-insensitive): `Done`, `Completed`, `Ready for release`, `Closed`, `Canceled`, `Cancelled`, `Duplicate`, `Won't fix`, `Wont fix`, `Not planned`, `Archived`, `Released`, `Deployed` (when clearly shipped).
 
-If status is ambiguous (e.g. `In Review` with open PR), continue triage and note the status.
+If status is ambiguous (e.g. `In Review` with an open PR), continue triage and note the status.
 
 **Done:** Skip template emitted, or neither skip condition holds.
 
@@ -96,10 +100,10 @@ Kano: end-user reaction if shipped (not team urgency).
 
 #### Importance (`Low` | `Medium` | `High`)
 
-Team urgency (Linear priority, dates, incidents) — not Kano.
+Team urgency (tracker priority/labels, dates, incidents) — not Kano.
 
-- **High** — Urgent, incident, SLA, explicit blocking, overdue
-- **Medium** — High priority, or due this cycle
+- **High** — Urgent, `P0`/`P1`, incident, SLA, explicit blocker, overdue
+- **Medium** — High/`P2` priority, or due this cycle/milestone
 - **Low** — Medium / Low / None, no date pressure
 
 #### ROI (`Low` | `Medium` | `High`)

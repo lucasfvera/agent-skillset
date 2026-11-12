@@ -4,10 +4,10 @@ description: >-
   Brings repository documentation back in sync with the codebase after features,
   refactors, or tooling changes. Works for standalone repos and monorepos: discovers
   where package manifests, config, and tests live, then cross-checks Markdown and
-  agent docs (README, docs/, AGENTS.md, .cursor rules, skills) against real scripts,
-  env samples, paths, CI, and public behavior. Use when finishing changes that could
-  leave docs stale, when the user asks to update README or docs, or when reconciling
-  documentation with implementation in any project layout.
+  agent docs (README, docs/, AGENTS.md, CLAUDE.md, GEMINI.md, rules, skills) against
+  real scripts, env samples, paths, CI, and public behavior. Use when finishing
+  changes that could leave docs stale, when the user asks to update README or docs,
+  or when reconciling documentation with implementation in any project layout.
 ---
 
 # Sync repository documentation with code
@@ -41,7 +41,7 @@ Scan and include any paths that exist under the target repo (not every repo has 
 | Contributing / legal | `CONTRIBUTING*`, `CODE_OF_CONDUCT*`, `SECURITY*`, `LICENSE*` cross-links |
 | Changelog / decisions | `CHANGELOG*`, `HISTORY*`, `adr/**`, `docs/adr/**` |
 | GitHub / GitLab | `.github/**/*.md` (templates, workflows that embed instructions), `.gitlab/**/*.md` |
-| Agent & editor guidance | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursor/rules/**` (`.md`, `.mdc`), `.cursor/skills/**/SKILL.md`, `.github/copilot-instructions.md`, `.vscode/` doc snippets if they duplicate commands |
+| Agent & editor guidance | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.agents/**`, `.cursor/**`, `.claude/**`, `.gemini/**` (rules and `SKILL.md` files), `.github/copilot-instructions.md`, `.vscode/` doc snippets if they duplicate commands |
 | Rules-of-thumb | Any `*.md` linked from README or AGENTS; wiki mirrors noted in-repo |
 
 When updating for a **scoped change** (one package in a monorepo), refresh **that package’s README** and any **root docs** that describe the whole system.

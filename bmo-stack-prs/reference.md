@@ -39,10 +39,10 @@ After computing `ROOT..TIP`, the planned PRs look like:
 
 | PR | `--base` | `--head` |
 |----|----------|----------|
-| 1 | `main` | `feat/1-step/...` |
-| 2 | `feat/1-step/...` | `feat/2-step/...` |
+| 1 | `main` | `feature/id-u1` |
+| 2 | `feature/id-u1` | `feature/id-u2` |
 | … | previous head | next head |
-| n | `feat/create-notif-queue` | `test/e2e-pub-hermod` |
+| n | `feature/id-u2` | `feature/id-u3` |
 
 Each row’s base must be a **strict ancestor** of its head.
 

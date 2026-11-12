@@ -5,7 +5,7 @@
 ## List resolved threads (full thread)
 
 ```bash
-OWNER=roxom-markets REPO=roxtopia NUMBER=833
+OWNER=acme REPO=app NUMBER=100
 
 gh api graphql -f query='
 query($owner: String!, $repo: String!, $number: Int!) {
@@ -59,7 +59,7 @@ gh pr view "$NUMBER" --comments --json comments \
   --jq '.comments[] | select(.body | test("Review follow-up")) | .body'
 ```
 
-Use the summary table for verdicts (`Valid`, `Partially valid`, `Keeping as-is`). Do not copy summary text into the catalog.
+Use the summary table for verdicts (`Valid`, `Partially valid`, `Keeping as-is`). Do not copy summary text into the ledger or reviewer files.
 
 ## Multi-PR sessions
 

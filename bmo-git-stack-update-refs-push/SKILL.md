@@ -1,13 +1,6 @@
 ---
-name: git-stack-update-refs-push
-description: >-
-  Rebases a stacked branch line with `git rebase --update-refs`, wires each
-  local branch to `origin/<same-name>` when that remote ref exists, and pushes
-  rewritten tips with `git push --force-with-lease` (optionally `--atomic`).
-  Use after restacking local branches, when the user mentions update-refs,
-  stacked branches out of sync after rebase, or pushing a rebased PR stack.
-  Do not auto-push unrelated local branches or first-time remotes unless the
-  user includes them in the stack being published.
+name: bmo-git-stack-update-refs-push
+description: Rebases stacked branches with git rebase --update-refs, aligns upstream tracking, and publishes rewritten tips with --force-with-lease.
 disable-model-invocation: true
 ---
 
@@ -23,7 +16,7 @@ disable-model-invocation: true
 
 ## Do not confuse with
 
-- **stack-prs** (personal skill `~/.cursor/skills/stack-prs/`) — discovers stack order from history, reconciles GitHub PRs, pushes/creates PRs. Use that when the goal is **PR workflow + automation**. Use **this** skill for the **rebase/update-refs + upstream + force-with-lease** mechanics.
+- **bmo-stack-prs** ([`bmo-stack-prs`](../bmo-stack-prs/SKILL.md)) — discovers stack order from history, reconciles GitHub PRs, pushes/creates PRs. Use that when the goal is **PR workflow + automation**. Use **this** skill for the **rebase/update-refs + upstream + force-with-lease** mechanics.
 
 ## Preconditions
 

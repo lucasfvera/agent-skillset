@@ -1,204 +1,120 @@
 ---
 name: bmo-integration-tests
 description: >-
-  Add or extend integration tests with real Postgres, RabbitMQ, and gRPC in
-  Roxom services (roxtarsverse apps like tx, hermod, and similar repos). Use
-  when the user asks for integration tests, end-to-end service tests, real-DB
-  tests, Rabbit publish/consumer verification, or gRPC handler integration
-  coverage. Prefer the smallest real stack that proves the behavior boundary.
+  Adds or extends service integration tests against real databases, API/RPC
+  transports, and message brokers using the smallest real stack that proves the
+  production boundary. Use when the user asks for integration tests, real-DB or
+  Testcontainers coverage, HTTP/gRPC/RPC handler wiring tests, or queue/event
+  producer and consumer verification.
 ---
 
-# Integration tests (real DB + Rabbit + gRPC)
+# Integration tests (real DB + transport + broker)
 
 ## Goal
 
-Prove behavior through **real infrastructure** (Postgres, RabbitMQ, gRPC) and **real in-process service/handler wiring**. Mock only **external systems** the service does not own (Fireblocks, Pricetrox, third-party APIs, etc.).
+Prove behavior through **real infrastructure** (database, HTTP/gRPC/RPC transport, message broker, cache) and **real in-process wiring**. Stub **only external boundaries** the service does not own (third-party APIs, payment/custody providers, external microservices).
 
-**Not integration:** handler-only tests with mocked `pg`/`rabbitmq`/`grpc` (tx `jest.config.grpc-handlers.ts`, hermod `tests/unit/`).
+Handler or service tests that mock the database, ORM, broker client, or transport layer are unit tests, not integration tests.
 
-## When to use
-
-- User wants confidence a flow works end-to-end (handler → service → DB → side effect).
-- User wants to assert Rabbit publishes or queue consumption.
-- User wants gRPC server + generated client against real DB state.
-- User references tx internal-transfer notification tests or hermod notification suites as the pattern.
-
-Pair with **`/bmo-step-deliver`** for multi-file work: harness → seeds → spec(s) as separate units.
+Pair with [`bmo-step-deliver`](../bmo-step-deliver/SKILL.md) for multi-file work: harness → seeds → spec(s) as separate units.
 
 ---
 
 ## Workflow (follow in order)
 
-### 1. Discover the production boundary
+### 1. Discover the repo's test environment
 
-Before writing code, answer:
+Inspect the repository before designing any harness:
 
-| Question | Why |
-|----------|-----|
-| **Ingress?** RPC handler, gRPC, HTTP, Rabbit consumer, job | Determines how the test triggers the flow |
-| **Success path needs what infra?** DB only, DB+gRPC, DB+Rabbit | Picks harness tier |
-| **Side effect to prove?** DB rows, Hermod publish, topic fan-out, gRPC response | Picks assertion seam |
-| **Async fan-out?** fire-and-forget notifications | Needs `waitUntil` before Rabbit/DB assertions |
+1. Check package/build manifests (`package.json`, `Makefile`, `pyproject.toml`, `go.mod`, `Cargo.toml`), CI workflows, and `.env.example` / `docker-compose*` to see how databases, brokers, and test runners run locally and in CI.
+2. Search existing `integration` / `e2e` suites for reusable harness factories, template-DB / Testcontainers setup, migration hooks, seed builders, and polling helpers.
 
-Read the real handler/service once. Do not guess message shapes — use `@roxom-markets/schemas` enums and existing publishers.
+**Done:** Existing runner command, infrastructure provisioning mechanism, and reusable harness helpers (or their absence) are recorded from the repo.
 
-### 2. Pick repo pattern
+### 2. Map the production boundary
 
-| Repo | Harness entry | Reference |
-|------|---------------|-----------|
-| **roxtarsverse** (`apps/tx`, other apps) | `createTestComponents` + domain helper | [reference.md § Roxtarsverse](reference.md#roxtarsverse) |
-| **hermod** | `createHermodTestApp` | [reference.md § Hermod](reference.md#hermod) |
-| **Other Roxom service** | Find `tests/components.ts` or `create*TestApp`; if missing, mirror tx or hermod | [reference.md § Adopting](reference.md#adopting-in-a-new-repo) |
+Read the real production entrypoint and contract/schema definitions once (never guess wire shapes):
 
-### 3. Pick integration tier
+| Question | Why it matters |
+|----------|----------------|
+| **Ingress?** HTTP route, gRPC/RPC method, queue/stream consumer, job | Determines how the test triggers the flow |
+| **Required real infra?** DB only, DB + transport, DB + broker/cache | Selects the smallest harness tier |
+| **Assertion seam?** Persisted rows, response payload/status, outbound publish, queue drain/fan-out | Selects what the test asserts |
+| **Async fan-out?** Fire-and-forget events or background consumers | Requires bounded condition polling before assertions |
 
-Use the **smallest tier** that can prove the behavior:
+**Done:** Entrypoint, contract types, required real infra, and assertion seam are named.
 
-| Tier | Real | Mock/stub | Use when |
-|------|------|-----------|----------|
-| **DB + services** | Postgres, real repos/services | externals, optional rabbit/grpc | Service/repository behavior, SQL state |
-| **DB + handler/RPC** | above + real handler factory | externals at component boundary | Rabbit RPC ingress (tx pattern) |
-| **DB + gRPC** | Postgres + gRPC server + generated client | externals | gRPC contract + persistence |
-| **DB + Rabbit consumer** | Postgres + real broker + app boot (`main()`) | server/http | Inbound queue → DB → outbound fan-out (hermod) |
-| **DB + Rabbit producer** | above + Hermod client route + `publish` spy | externals | Outbound Hermod notification (tx producer) |
+### 3. Pick the smallest real tier
 
-**Rule:** Do not wire Hermod/Rabbit extras into the default stack when error-path tests do not need them. Add a **notification-aware** or **rabbit-aware** stack variant (see tx `createInternalTransferNotificationStack`).
+Boot only the infrastructure required to prove the target boundary:
 
-### 4. Register isolated resources
+| Tier | Real | Stubbed / omitted | Use when |
+|------|------|-------------------|----------|
+| **DB + domain/service** | Database + migrations + repositories + services | External APIs, transport server, broker | Persistence, SQL/ORM queries, transactions, constraints |
+| **DB + API/RPC transport** | Above + real HTTP/gRPC/RPC server & typed client | External APIs, unneeded background workers | Wire serialization, validation, auth middleware, status/error mapping + DB |
+| **DB + broker producer** | Above + real publisher pipeline + spy/capture at last in-process broker boundary (or ephemeral exchange) | External APIs, downstream consumer services | Outbound event/message contract without booting downstream services |
+| **DB + broker consumer** | Real DB + real broker + consumer worker loop | Unneeded HTTP server, external APIs | Inbound message → state transition → ack/retry/DLQ/outbound fan-out |
 
-Every suite needs **unique** resources when Jest runs in parallel:
+Keep the default harness minimal; add opt-in transport-aware or broker-aware factory variants rather than booting the entire application for every test. When building a new harness or broker seam from scratch, read [reference.md](reference.md).
 
-- **DB name:** register in `TEST_CONFIGS` (tx) or pass a dedicated `databaseName` (hermod).
-- **gRPC port:** unique per suite in tx `TEST_CONFIGS`; hermod often uses random port — prefer fixed unique port in CI-heavy suites.
-- **Rabbit vHost:** one vHost per rabbit-tier suite (hermod); tx can use `rabbitVHost` on `createTestComponents` when needed.
+**Done:** One tier is selected and justified against the boundary from Step 2.
 
-Lifecycle template:
+### 4. Isolate parallel resources
+
+Every suite claims collision-free resources so parallel test workers never fight over state or ports:
+
+- **Database:** dedicated cloned template DB, per-suite schema, per-worker container, or per-test rolled-back transaction (only when the code under test shares that single connection).
+- **Network port:** OS-assigned ephemeral port (`0`) or a registered suite-unique port.
+- **Broker / cache:** unique vHost, topic/queue prefix, consumer group, or key namespace per suite.
+
+Standard lifecycle:
 
 ```text
-beforeAll  → create harness (60s timeout)
-beforeEach → clear mocks, re-apply spy defaults, reset/seed DB
-afterAll   → stop components/app → drop test database (30s timeout)
+beforeAll  → provision isolated DB/vhost/port, run migrations, start harness
+beforeEach → clear call history, re-apply default stub return values, reset tables in FK order, seed scenario
+afterAll   → stop consumers/servers/clients cleanly, drop ephemeral DB/vhost/containers
 ```
 
-### 5. Build the harness
+**Done:** Suite setup and teardown leave zero shared port, database, or queue collisions across parallel runs.
 
-**Roxtarsverse (tx-style)**
+### 5. Seed realistic state
 
-1. `createTestComponents({ databaseName, grpcPort?, rabbitVHost? })`
-2. Wire `initRepositories` → services → handler(s) with the **smallest** real graph.
-3. For notification tests: register Hermod route, replace `rabbitmq.client`, spy `publish`.
-4. Export from `tests/integration/helpers/<domain>Context.ts`:
-   - stack factory(ies) — minimal vs extended
-   - `reset*Tables`, seed helpers, message builders
-   - assertion helpers (`findHermodPublish`, etc.)
+| Data | Approach |
+|------|----------|
+| Reference / parent entities | Parameterized SQL or shared factory builders with realistic IDs (valid UUIDs, real enum values, valid timestamps) |
+| Domain invariants (balances, state machines, ledgers) | Seed through the real write service or repository when downstream logic depends on its invariants |
+| Multi-tenant / cross-actor cases | Named scenario helper documenting which actor owns which records |
 
-**Hermod**
+**Done:** Seeds use contract-valid types and reset cleanly between tests.
 
-1. `createHermodTestApp({ databaseName, grpcPort? })` or `{ rabbitVHost }` for full consumer path.
-2. Seed via **real services** inside transactions.
-3. Assert with SQL + optional gRPC client + Rabbit probes.
+### 6. Trigger production ingress and assert the seam
 
-See [reference.md](reference.md) for file paths and copy-paste skeletons.
+1. **Trigger** through the same ingress production callers use: generated RPC/HTTP client, bound route/handler factory, or real broker publish.
+2. **Assert** the specific seam(s) under test:
+   - **Transport/handler result:** status code, typed response payload, error code.
+   - **Database state:** persisted rows, state transitions, absence of partial writes on rollback.
+   - **Broker producer:** spy or capture at the **last in-process client boundary** before bytes leave the service, using a named lookup helper instead of raw call-index subscripts.
+   - **Broker consumer:** wait for consumer readiness → publish message → wait for queue drain / condition → assert DB state and any outbound fan-out on a **separate probe channel** (never read probes from the busy worker channel).
+3. **Async side effects:** poll with a bounded `waitUntil(predicate, { timeoutMs, intervalMs })` helper rather than fixed `sleep` timers or synchronous post-return checks.
 
-### 6. Seed data
+**Done:** Every assertion targets a real boundary seam with typed contract expectations and deterministic async synchronization.
 
-| Data | Prefer |
-|------|--------|
-| Users, accounts, addresses | Parameterized SQL via harness helpers |
-| Balances / movements | Real `movementsService.storeMovements` when balance matters |
-| Stable IDs (instruments, networks) | Shared fixtures (`SAMPLE_INSTRUMENT_IDS`, not `'btc-1'`) |
-| Cross-user scenarios | Explicit seed helpers with docstring explaining why |
+### 7. Verify
 
-Order deletes to respect FKs. Reset in `beforeEach` for isolation.
+Run the targeted integration file serially first via the repo's runner (e.g. `--runInBand`, `-p 1`, `--maxWorkers=1`, or single-file invocation), then confirm teardown exits cleanly without open handles. If required containers/services cannot run in the current environment, state what blocked execution and provide exact commands to start infra and run the spec.
 
-### 7. Trigger and assert
-
-**Trigger:** Call the same ingress production uses — handler with `RabbitMessage`, gRPC client method, or publish to queue (consumer tests).
-
-**Assert layers (pick what the test claims to prove):**
-
-1. **Handler/service result** — `expect(result.error).toBe(false)`
-2. **DB state** — SQL on domain tables (`tx_internal`, `user_notifications`, …)
-3. **gRPC response** — typed client response fields
-4. **Rabbit producer** — spy on `rabbitmq.client.publish` or `publishToTopic`
-5. **Rabbit consumer** — queue drain, topic probe, outbound spy
-
-**Producer async fan-out (tx → Hermod):**
-
-```typescript
-await waitUntil(() =>
-  Boolean(findHermodPublish(publishSpy, { userId, direction: 'sent' }))
-);
-const call = findHermodPublish(publishSpy, { userId, direction: 'sent' });
-expect(call).toEqual([expect.objectContaining({ request_id: expect.any(String) }), 'hermod', expect.objectContaining({ /* contract */ })]);
-```
-
-Spy at the **last in-process boundary** before the message leaves the service. Use a named lookup helper instead of raw `mock.calls[n][2]`.
-
-**Consumer async (hermod):** `waitForQueueConsumer` → publish → `waitForQueueDrain` → SQL assert → optional `waitForTopicMessage` / `publishToTopic` spy.
-
-### 8. Verify
-
-From the correct package root:
-
-```bash
-# tx — single suite, serial (recommended while authoring)
-yarn --cwd "/path/to/roxtarsverse" workspace tx test tests/integration/flows/<file>.integration.test.ts --runInBand
-
-# hermod — explicit path (integration project also matches tests/unit)
-yarn --cwd "/path/to/hermod" test:integration --runInBand tests/integration/<file>.integration.test.ts
-```
-
-**Prerequisites:** `tests/env/.env` from `.env.example`; local Postgres; RabbitMQ (+ management plugin for vHost suites); Redis when the harness starts it.
-
-If parallel runs fail with `unique_violation` on template DB or `EADDRINUSE` on gRPC, rerun with `--runInBand`.
-
-### 9. Deliver
-
-When using `/bmo-step-deliver`, typical commit split:
-
-1. `test(<app>): Add <domain> integration harness` — configs, helpers, seeds
-2. `test(<app>): Cover <behavior> integration` — spec file(s)
-3. `fix(<app>): …` — only if the test exposed a production bug (separate commit)
+**Done:** Targeted integration suite exits `0` against real infrastructure (or exact environment blocker + runnable commands are reported).
 
 ---
 
 ## Design rules
 
-1. **Smallest real stack** — no full app boot unless the test needs it (hermod rabbit tier).
-2. **One assertion seam per concern** — DB proof vs Rabbit proof can be separate tests.
-3. **No `any` in new test code** — type Rabbit tuples narrowly (`HermodPublishCall`).
-4. **Re-apply mocks after `jest.clearAllMocks()`** — unleash, lockManager, pricetrox, etc.
-5. **Do not assert Rabbit synchronously** after fire-and-forget handler returns.
-6. **Fixture realism** — UUID v4/v7, real enum members, plausible amounts.
-7. **Name files honestly** — `*.integration.test.ts` when using global DB setup; scope in filename (`notifications.rabbit.integration.test.ts`).
-8. **Document harness variants** — short docstring on why minimal vs notification stack exist.
+1. **Smallest real stack** — boot full app wiring only when testing startup or end-to-end broker consumption.
+2. **One seam per test** — separate DB persistence edge cases from broker wire-contract assertions when practical.
+3. **Strict contract types** — type fixtures, RPC payloads, and captured broker messages with the real schema types (never `any`).
+4. **Re-apply stub defaults after clearing mocks** — `clearAllMocks` / `resetMocks` can strip default return values needed by later tests.
+5. **Test cross-service contracts at each service's boundary** — assert the producer contract in service A and the consumer contract in service B against the shared schema rather than booting multiple services in one test process.
 
----
+## Disclosed blueprints
 
-## Anti-patterns
-
-| Avoid | Do instead |
-|-------|------------|
-| Mock `userEventsService` when testing Hermod publish | Wire real `userEventsService` + spy `publish` |
-| Share one gRPC port across suites | Unique port per suite or `--runInBand` |
-| Inline 80-line seed in every test | Harness seed helper |
-| `integration/grpcHandlers/` (mocked) for real gRPC proof | `integration/grpc/` with real server |
-| Commit `file:.yalc/...` lockfile drift | Keep local schema links unstaged |
-| Over-broad `test:integration` on hermod | Pass explicit file path |
-
----
-
-## Canonical examples
-
-| Scenario | File |
-|----------|------|
-| tx: Hermod producer, RPC ingress, `waitUntil` | `roxtarsverse/apps/tx/tests/integration/flows/internalTransferNotifications.integration.test.ts` |
-| tx: harness + seeds + publish spy | `roxtarsverse/apps/tx/tests/integration/helpers/internalTransferHandlerContext.ts` |
-| tx: full deposit flow + `publishToTopic` | `roxtarsverse/apps/tx/tests/integration/flows/deposits.test.ts` |
-| tx: real gRPC server + client | `roxtarsverse/apps/tx/tests/integration/grpc/tx/getLimit.test.ts` |
-| hermod: DB + service | `hermod/tests/integration/notifications.integration.test.ts` |
-| hermod: gRPC | `hermod/tests/integration/notifications.grpc.integration.test.ts` |
-| hermod: Rabbit consumer + topic probe | `hermod/tests/integration/notifications.rabbit.integration.test.ts` |
-
-More paths and skeletons: [reference.md](reference.md).
+For harness factory patterns, template-DB/Testcontainers isolation, bounded `waitUntil` + broker producer/consumer skeletons, and bootstrapping a repo with no existing harness, read [reference.md](reference.md).
