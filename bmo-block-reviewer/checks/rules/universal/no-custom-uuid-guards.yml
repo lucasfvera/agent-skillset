@@ -1,0 +1,20 @@
+id: no-custom-uuid-guards
+language: TypeScript
+severity: warning
+files:
+  - '**/*repo*'
+  - '**/*store*'
+  - '**/*dao*'
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Avoid custom UUID regex guards in repository/store files; rely on DB `uuid` columns and boundary schema validators."
+note: "Validate UUIDs at the request boundary (e.g. `z.string().uuid()`) and let database `uuid` column types enforce storage format."
+metadata:
+  domain: database
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: regex
+  regex: '\{8\}-\[0-9a-f'

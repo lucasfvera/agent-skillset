@@ -1,0 +1,8 @@
+id: no-empty-string-as-undefined
+valid:
+  - "const ok = value ?? undefined;"
+  - "const ok2 = value.trim() === '' ? undefined : value;"
+  - "const ok3 = flag || fallback;"
+invalid:
+  - "return sanitized || undefined;"
+  - "const bio = input.trim() || undefined;"

@@ -1,0 +1,27 @@
+id: test-realistic-fixtures
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Use production-like ID values (UUIDs or realistic identifiers) in test fixtures instead of placeholder strings like `'user-1'` or `'tx-123'`."
+note: "Replace placeholder IDs (`'user-1'`, `'tx-123'`, `'test-id'`) with realistic format-valid identifiers (such as a UUID v4)."
+metadata:
+  domain: testing
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: pair
+  all:
+    - has:
+        field: key
+        any:
+          - kind: property_identifier
+            regex: ^(id|[a-z0-9_]+(Id|_id))$
+          - kind: string
+            regex: ^['"](id|[a-z0-9_]+(Id|_id))['"]$
+    - has:
+        field: value
+        kind: string
+        regex: ^['"](test|mock|fake|dummy|sample|user|tx|txn|order|item|acct|account|org|doc|id)[-_](id|[0-9]{1,3})['"]$

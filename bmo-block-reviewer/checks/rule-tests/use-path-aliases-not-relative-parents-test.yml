@@ -1,0 +1,8 @@
+id: use-path-aliases-not-relative-parents
+valid:
+  - import { Button } from '@shared/components/button/button';
+  - import { helper } from './helper';
+  - import { Component } from '@angular/core';
+invalid:
+  - import { AccountAuthenticator } from '../account/account_authenticator';
+  - import { Button } from '../../shared/components/button/button';

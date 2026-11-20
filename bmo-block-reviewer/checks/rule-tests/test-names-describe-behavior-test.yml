@@ -1,0 +1,9 @@
+id: test-names-describe-behavior
+valid:
+  - "it('rejects expired session tokens with 401', () => {});"
+  - "it('encodes payload as UTF-8 and signs with SHA-256', () => {});"
+  - "describe('AccountAuthenticator', () => {});"
+invalid:
+  - "it('U2: renders video player when enabled', () => {});"
+  - "it('fixes ENG-442 duplicate submit', () => {});"
+  - "test('regression for DEV-1042', () => {});"

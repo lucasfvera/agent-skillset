@@ -1,0 +1,18 @@
+id: no-self-asserting-constants
+language: TypeScript
+severity: error
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Do not compare an expression or constant against itself in `expect(x).toBe(x)` / `toEqual(x)`."
+note: "Assert the return value or side effect produced by the code under test against the expected value."
+metadata:
+  domain: testing
+  tier: issue
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  any:
+    - pattern: expect($X).toBe($X)
+    - pattern: expect($X).toEqual($X)
+    - pattern: expect($X).toStrictEqual($X)

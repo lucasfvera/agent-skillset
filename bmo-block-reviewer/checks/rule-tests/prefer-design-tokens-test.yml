@@ -1,0 +1,7 @@
+id: prefer-design-tokens
+valid:
+  - ".card { color: var(--color-text-primary); background: transparent; }"
+  - ":root { --color-brand: #1a73e8; }"
+invalid:
+  - ".card { color: #1a73e8; }"
+  - ".badge { border: 1px solid #ccc; }"

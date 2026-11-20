@@ -1,0 +1,7 @@
+id: strict-equality
+valid:
+  - const ok = a === b;
+  - const ok2 = a !== null;
+invalid:
+  - const bad = a == b;
+  - const bad2 = a != null;

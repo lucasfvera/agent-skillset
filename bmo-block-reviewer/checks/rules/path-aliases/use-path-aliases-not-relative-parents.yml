@@ -1,0 +1,17 @@
+id: use-path-aliases-not-relative-parents
+language: TypeScript
+severity: warning
+message: Prefer configured `tsconfig.json` path aliases (`@app/...`, `@shared/...`, etc.) over relative parent imports (`../`).
+note: Replace relative parent traversal (`../...`) with the matching path alias from `tsconfig.json` `compilerOptions.paths`.
+metadata:
+  domain: core
+  tier: style
+  languages: [TypeScript, Tsx]
+rule:
+  kind: import_statement
+  has:
+    field: source
+    kind: string
+    has:
+      kind: string_fragment
+      regex: ^\.\./

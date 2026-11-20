@@ -1,0 +1,17 @@
+id: component-host-metadata-over-decorators
+language: TypeScript
+severity: warning
+message: "Prefer the `host` metadata option in `@Component`/`@Directive` over `@HostListener` or `@HostBinding` decorators."
+note: "Move host event listeners and bindings into the `host: { ... }` object on the `@Component` or `@Directive` decorator."
+metadata:
+  domain: frontend
+  tier: style
+  languages: [TypeScript]
+rule:
+  kind: decorator
+  has:
+    kind: call_expression
+    has:
+      field: function
+      kind: identifier
+      regex: ^(HostListener|HostBinding)$

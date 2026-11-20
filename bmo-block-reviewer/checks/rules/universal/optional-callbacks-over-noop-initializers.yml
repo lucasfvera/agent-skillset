@@ -1,0 +1,22 @@
+id: optional-callbacks-over-noop-initializers
+language: TypeScript
+severity: warning
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Declare unregistered callback fields as optional (`cb?: (...) => void`) instead of initializing to an empty no-op `() => {}`."
+note: "Remove `= () => {}` and invoke the callback with optional chaining (`this.cb?.(...)`)."
+metadata:
+  domain: core
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx]
+rule:
+  kind: public_field_definition
+  has:
+    field: value
+    kind: arrow_function
+    has:
+      field: body
+      kind: statement_block
+      regex: ^\{\s*\}$

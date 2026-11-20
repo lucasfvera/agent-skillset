@@ -1,0 +1,8 @@
+id: no-transaction-for-single-read
+valid:
+  - "await db.select().from(users);"
+  - "await db.transaction(async (tx) => { const u = await tx.select().from(users); await tx.update(users).set({ seen: true }); return u; });"
+  - "await db.transaction(async (tx) => tx.select().from(jobs).forUpdate());"
+invalid:
+  - "await db.transaction(async (tx) => tx.select().from(users));"
+  - "await prisma.transaction(async (tx) => { return await tx.user.findUnique({ where: { id } }); });"

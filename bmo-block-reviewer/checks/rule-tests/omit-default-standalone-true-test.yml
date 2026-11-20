@@ -1,0 +1,34 @@
+id: omit-default-standalone-true
+valid:
+  - |
+    @Component({
+      selector: 'app-footer',
+      imports: [RouterLink],
+    })
+    export class Footer {}
+  - |
+    @Component({
+      selector: 'app-legacy',
+      standalone: false,
+    })
+    export class Legacy {}
+  - "const cfg = { standalone: true, imports: [] };"
+invalid:
+  - |
+    @Component({
+      selector: 'app-footer',
+      standalone: true,
+    })
+    export class Footer {}
+  - |
+    @Directive({
+      selector: '[appTrack]',
+      standalone: true,
+    })
+    export class TrackDirective {}
+  - |
+    @Component({
+      selector: 'app-nav',
+      imports: [],
+    })
+    export class Nav {}

@@ -1,0 +1,8 @@
+id: no-self-asserting-constants
+valid:
+  - "expect(result).toBe(EXPECTED);"
+  - "expect(formatName(user)).toEqual('Ada');"
+invalid:
+  - "expect(EXPECTED).toBe(EXPECTED);"
+  - "expect(user.id).toEqual(user.id);"
+  - "expect(payload).toStrictEqual(payload);"

@@ -1,13 +1,18 @@
 # Testing review rules (`testing`)
 
-Apply when the diff touches unit, component, or integration tests (`*.test.*`, `*.spec.*`), test fixtures, mocks, or suite harnesses.
+Apply when the diff touches unit, component, or integration tests (`*.test.*`, `*.spec.*`), test fixtures, spies/mocks, or suite harnesses.
 
 ## 1. Strict issues (`[issue]`)
 
-Check these first. Every violation produces flaky tests, parallel worker collisions, or false-positive specs that pass while production is broken.
+Check these first. Every violation produces flaky tests, parallel worker collisions, un-typechecked spies, or false-positive specs that pass while production is broken.
 
-- **[no-settimeout-sleeps]** Await the returned promise, event helper, or explicit stability signal directly in unit tests; never pause with `setTimeout` timer sleeps.
+- **[no-settimeout-sleeps]** Await the returned promise, event helper, or explicit stability signal directly in unit tests; never pause with non-zero `setTimeout` timer sleeps (explicit `setTimeout(r, 0)` macrotask flushes are allowed).
 - **[test-contract-types]** Type test fixtures and mock payloads with the producing service's real contract types rather than loose object shapes so contract drift fails at compile time.
+- **[type-parameterized-test-spies]** Parameterize spy declarations with the target method signature (`jasmine.Spy<typeof svc.method>`) rather than bare `jasmine.Spy` so resolved values and call assertions stay type-checked.
+- **[test-form-submit-via-dom-events]** Trigger form submissions in unit tests by dispatching a `submit` event on `<form>` or clicking an enabled submit button rather than invoking private or protected handler methods via bracket notation.
+- **[assert-activated-route-component]** Assert the activated route component on the router state snapshot in navigation tests rather than checking only navigation success and URL path.
+- **[assert-view-state-not-unused-router]** When a component switches views via internal state rather than router navigation, assert that the target child view is rendered or absent in the DOM instead of spying on an unused `router.navigate`.
+- **[assert-variant-distinguishing-elements]** When testing a component variant that hides elements, assert both that the host renders and that elements unique to the default and sibling variants are absent so a broken fallback fails the test.
 - **[integration-tests-match-production]** Drive integration tests through the shared suite factory and generated client the way production calls the API, rather than calling handlers directly, booting a parallel harness, or wrapping the client in test-only promises.
 - **[shared-test-config-ports]** Register a distinct integration listen port per suite in the shared test config map rather than hardcoding ports in specs or sharing one port across parallel workers.
 - **[test-unit-owned-contract]** Assert the contract owned by the unit under test (methods called, arguments, HTTP projection, status codes) rather than re-asserting payload fields a mock was hardcoded to return.
@@ -27,6 +32,7 @@ Check these after Pass 1. Align the spec to these patterns without crowding out 
 - **[separate-queries-from-assertions]** Assign `screen.getBy...` results to variables before passing them into `expect(...)` calls.
 - **[test-aaa-pattern]** Structure unit tests into clear Arrange, Act, and Assert phases with setup variables kept separate from execution and expectations.
 - **[behavior-not-implementation]** Assert user-visible behavior and public contract outputs rather than internal implementation details.
+- **[test-new-branches-and-attributes]** Cover every state transition, error recovery path, partial-update field omission, and security or accessibility attribute (`alt`, `aria-label`, `target="_blank"`, `rel="noopener noreferrer"`) introduced in the diff with explicit unit assertions.
 - **[assert-mock-presence-or-transformed-props]** When a child component is mocked, assert that the mock rendered or received a transformed prop from the real logic under test, not behavior defined inside the mock itself.
 - **[no-css-class-assertions]** Verify visual states through accessible attributes or user-visible behavior in unit tests rather than asserting CSS class names or inline styles; drop the case if it is purely visual.
 - **[test-realistic-fixtures]** Populate fixtures with production-like values (UUID v4 strings, real enum members, plausible amounts) rather than placeholders like `'tx-123'` or `'user-1'`.

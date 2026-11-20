@@ -12,16 +12,22 @@ This skill covers a delivery-digest block, a PR-fix slice, or a domain slice of 
 
 ## Review procedure
 
-1. **Inspect the diff:** Read the actual changed files and `git diff` (plus one sibling file when checking pattern consistency). Use handoff text (digest, verification notes, PR comment) as supporting context only; if the diff is unavailable, state that the review is limited by missing code context. Treat work explicitly marked for a later unit as **Deferred (out of scope)**, not a finding.
-2. **Load matching domain catalogs:** Always apply the **Core** rules below, plus only the domain files triggered by the changed paths:
-   - **Frontend** ([`references/frontend.md`](references/frontend.md)) — UI components, client hooks, form or view state, templates, CSS/design tokens.
-   - **Backend** ([`references/backend.md`](references/backend.md)) — HTTP/gRPC/message handlers, routes, middleware, services, wire schemas/protos, generated clients.
-   - **Database** ([`references/database.md`](references/database.md)) — SQL queries, repositories/stores, DB transactions, schema constraints, migrations.
-   - **Testing** ([`references/testing.md`](references/testing.md)) — Unit, component, and integration specs (`*.test.*`, `*.spec.*`), fixtures, mocks, test harnesses.
-3. **Pass 1 — Strict issues (`[issue]`):** Check **Core → Strict issues** and each loaded domain's **Strict issues** section first. Trace failure paths, boundary validation, status codes, resource locks, and whether tests can pass when production is broken.
-4. **Pass 2 — Style & conventions (`[style]`):** Check **Core → Style & conventions** and each loaded domain's **Style & conventions** section second. Skip generic security hunts, invented edge cases, and long summaries.
+1. **Run deterministic pre-scan (`checks/run-checks.py`):** Unless the parent skill already ran it for this diff, execute:
+   ```bash
+   python3 "<SKILLS_DIR>/bmo-block-reviewer/checks/run-checks.py" --repo "<GIT_ROOT>" [--base <base>]
+   ```
+   - Exit `0` or `1`: fold any returned `[issue]` and `[style]` hits into your findings list, and **skip re-evaluating the rule IDs listed under `Checked rules:`** during the AI passes below. (`[issue]` findings block `ship`.)
+   - Exit `2` (`ast-grep` unavailable): note `Deterministic scan: unavailable (prose fallback)` and evaluate all prose rules below as backup.
+2. **Inspect the diff:** Read the actual changed files and `git diff` (plus one sibling file when checking pattern consistency). Use handoff text (digest, verification notes, PR comment) as supporting context only; if the diff is unavailable, state that the review is limited by missing code context. Treat work explicitly marked for a later unit as **Deferred (out of scope)**, not a finding.
+3. **Load matching domain catalogs:** Always apply the **Core** rules below, plus only the domain files triggered by the changed paths:
+   - **Frontend** ([`references/frontend.md`](references/frontend.md)) — UI components, signals/hooks, reactive forms or view state, templates, accessibility, CSS/SCSS/design tokens.
+   - **Backend** ([`references/backend.md`](references/backend.md)) — HTTP/gRPC/message handlers, routes, middleware, SDK wrappers, services, wire schemas/protos, generated clients.
+   - **Database** ([`references/database.md`](references/database.md)) — SQL or document-store queries, repositories/stores, data converters, DB transactions, schema constraints, migrations.
+   - **Testing** ([`references/testing.md`](references/testing.md)) — Unit, component, and integration specs (`*.test.*`, `*.spec.*`), fixtures, spies/mocks, test harnesses.
+4. **Pass 1 — Strict issues (`[issue]`):** Check remaining (non-`Checked rules`) **Core → Strict issues** and each loaded domain's **Strict issues** section first. Trace failure paths, boundary validation, status codes, resource locks, and whether tests can pass when production is broken.
+5. **Pass 2 — Style & conventions (`[style]`):** Check remaining (non-`Checked rules`) **Core → Style & conventions** and each loaded domain's **Style & conventions** section second. Skip generic security hunts, invented edge cases, and long summaries.
 
-**Done:** Every domain file matching the changed paths was read; Pass 1 (`[issue]`) was evaluated before Pass 2 (`[style]`); every triggered rule cites its `[rule-id]`.
+**Done:** Deterministic scan ran (or explicit prose fallback recorded); every domain file matching the changed paths was read; Pass 1 (`[issue]`) was evaluated before Pass 2 (`[style]`); every triggered rule cites its `[rule-id]`.
 
 ---
 
@@ -32,6 +38,8 @@ Apply on every diff during Pass 1.
 - **[no-any]** Type every value, parameter, and return path explicitly; replace `any` with the concrete contract type or `unknown` narrowed by a guard.
 - **[catch-unknown-not-any]** Bind `catch (err: unknown)` and narrow with `instanceof Error` or a typed guard before reading error properties.
 - **[strict-equality]** Compare values with strict equality (`===`, `!==`) so type coercion never masks `null`, `undefined`, or numeric mismatches.
+- **[object-hasown-for-dictionary-lookups]** Look up dynamic keys in plain-object dictionaries with `Object.hasOwn(map, key)` after trimming candidate keys rather than using `in`, which matches inherited `Object.prototype` properties like `'constructor'` or `'toString'`.
+- **[explicit-error-classification-and-redaction]** Match explicit error codes when branching on domain failures (preserving valid `0` status codes and never treating `!errorCode` as a domain match), unify redaction key lists across string and object sanitizers, and anchor stack-trace regexes on line/column markers.
 - **[use-decimal-helpers]** Compute money, rate, and FX math through shared decimal helpers rather than native floating-point division or multiplication.
 - **[log-presence-not-secrets]** Log boolean presence flags (`Boolean(secret)`) for credentials and tokens; never log secret values.
 - **[no-empty-string-as-undefined]** Validate required strings before helper calls and treat only `undefined` as omitted; never coerce `""` to `undefined` via truthiness (`val || undefined`).
@@ -44,12 +52,17 @@ Apply on every diff during Pass 2.
 
 - **[real-contract-types]** Type values with the producing module's contract type directly; reserve `as` assertions for boundaries where narrowing is impossible.
 - **[schema-narrow-types]** Use schema-defined narrow types at validated boundaries rather than wide unions that upstream validation already constrained.
+- **[export-type-guard-with-const-map]** Export a companion union type and type-guard function alongside `as const` error or discriminator maps so callers avoid repeating manual shape checks on `unknown`.
 - **[shared-constants-not-magic]** Import numeric defaults, limits, and timeouts from shared schemas or constants packages instead of hardcoding literals.
 - **[consume-original-shared-exports]** Import canonical lists, constants, and paths directly from their original shared module without local array copies or renaming re-exports.
+- **[use-path-aliases-not-relative-parents]** Import via configured path aliases (`@app/...`, `@shared/...`, and root-relative `@use 'styles/...'` in SCSS) instead of relative parent traversal (`../`), and reference Sass variables directly without `#{...}` interpolation in property values.
+- **[unambiguous-unabbreviated-identifiers]** Spell out the exact domain concept in class, method, guard, and file names (`authenticatedGuard`, `isUserAuthenticated`, `VerifySessionModal`) rather than ambiguous abbreviations like `auth` or `reauth`.
 - **[colocate-related-code]** Keep types, helpers, and wiring that change together in the same module or folder.
 - **[extract-for-testability]** Extract pure branching or transformation logic into a dedicated helper when direct unit testing is simpler than driving the full caller.
 - **[avoid-thin-wrappers]** Inline single-expression checks at the call site when a wrapper function adds indirection without reuse or testability gain.
 - **[no-forced-shared-helpers]** Keep similar functions separate when their contracts, return shapes, or domain branches diverge enough that sharing requires mode flags or indirection.
+- **[early-return-guard-clauses]** Handle invalid or no-op conditions up front with early-return guard clauses so the main execution path stays flat rather than nested inside conditionals.
+- **[optional-callbacks-over-noop-initializers]** Declare unregistered callback fields as optional and invoke them with optional chaining (`?.`) rather than initializing them to empty no-op functions.
 - **[single-return-formatters]** Structure pure formatter functions around one assignment path and a single `return` at the end.
 - **[extract-nullish-chains]** Assign multi-step `??` fallback chains to a named intermediate variable or helper so precedence is explicit.
 - **[extract-named-predicates]** Extract multi-clause `&&` / `||` domain conditions into a named boolean helper that states the domain question.
@@ -73,6 +86,7 @@ Keep the response short and findings-first. List all `[issue]` findings before `
 - [issue] [<rule-id>] <what is wrong, why it matters here, what to change>
 - [style] [<rule-id>] <what is wrong, why it matters here, what to change>
 
+Deterministic scan: <ran (profiles: …; N checked rules; X issue, Y style) | unavailable (prose fallback)>
 Catalog: core[, frontend, backend, database, testing] — <triggered rule-ids or none>
 
 What is fine:

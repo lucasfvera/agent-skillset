@@ -10,15 +10,17 @@ Copies every `bmo-*` skill into `~/.cursor/skills/` (or `$BMO_SKILLS_DIR` when s
 
 ## Manual Workflow
 
-<img width="6455" height="1272" alt="Manual workflow overview" src="https://github.com/user-attachments/assets/e44b4794-a54a-46cb-9955-0d8fa17bb0f1" />
+<img width="100%" alt="Manual workflow overview" src="docs/diagrams/manual-flow.svg" />
 
 The original flow from which these skills evolved: running one skill at a time with human checkpoints before composing them into automated pipelines.
+
+Diagram sources live in [`docs/diagrams/`](docs/diagrams/): open a `.excalidraw` file at excalidraw.com to edit it, then export it as SVG with dark mode on over the matching `.svg`.
 
 ## Skills
 
 | Skill | When to use it |
 |-------|----------------|
-| `/bmo-block-reviewer` | Two-pass findings-first diff review: Pass 1 (`[issue]`) catches correctness, contract, security, performance, and false-test defects; Pass 2 (`[style]`) checks conventions across domain catalogs (`core`, `frontend`, `backend`, `database`, `testing`). |
+| `/bmo-block-reviewer` | Deterministic `ast-grep` pre-scan (`checks/run-checks.py`, auto-detected stack profiles, diff-line ratchet) + two-pass findings-first AI review: Pass 1 (`[issue]`) catches correctness, contract, security, performance, and false-test defects; Pass 2 (`[style]`) checks conventions across domain catalogs (`core`, `frontend`, `backend`, `database`, `testing`). |
 | `/bmo-commit` | Creates a git commit strictly from staged changes without editing files or running formatters, matching the repository's commit style. |
 | `/bmo-document-html` | Produces standalone, graphics-first technical documentation as a self-contained HTML page with diagrams, semantic layout, and light/dark styling. |
 | `/bmo-git-stack-update-refs-push` | Rebases a local branch stack with `git rebase --update-refs`, aligns upstream tracking, and publishes rewritten tips with `--force-with-lease`. |
@@ -32,11 +34,13 @@ The original flow from which these skills evolved: running one skill at a time w
 | `/bmo-teach` | Scaffolds an offline, hands-on learning repository calibrated to your starting point across sprint, portfolio, and TDD kata tracks. |
 | `/bmo-tone` | Enforces direct, zero-fluff engineering prose when ghostwriting PRs/comments/docs or replying in chat. |
 | `/bmo-triage` | Scores an issue (Linear, GitHub Issues, or pasted text) on complexity, Kano user value, importance, ROI, and automated pickup readiness. |
-| `/bmo-update-block-reviewer-skill` | Distills pending PR review captures from `inbox/pending/` into domain- and tier-classified rules (`issue` on 1+ PR source; `style` staged in `ledger.md` and promoted on 2+ PR sources). |
+| `/bmo-update-block-reviewer-skill` | Distills pending PR review captures from `inbox/pending/` via an escalation ladder (portable `ast-grep` rule + proof test first, prose-only last) into domain- and tier-classified rules tracked in `ledger.md`. |
 
 ## Workflows
 
 ### `/bmo-builder`
+
+<img width="100%" alt="Builder workflow" src="docs/diagrams/bmo-builder.svg" />
 
 | When to use it |
 |----------------|
@@ -44,7 +48,7 @@ The original flow from which these skills evolved: running one skill at a time w
 
 ### `/bmo-issue-pipeline`
 
-<img width="3908" height="1489" alt="Issue pipeline workflow" src="https://github.com/user-attachments/assets/4bb56419-1783-415d-885e-f098b487e5e9" />
+<img width="100%" alt="Issue pipeline workflow" src="docs/diagrams/bmo-issue-pipeline.svg" />
 
 | When to use it |
 |----------------|
@@ -52,7 +56,7 @@ The original flow from which these skills evolved: running one skill at a time w
 
 ### `/bmo-respond-pr-review`
 
-<img width="5828" height="1404" alt="Respond to PR review workflow" src="https://github.com/user-attachments/assets/1523ef30-755d-443f-a1cd-adc7c046c81c" />
+<img width="100%" alt="Respond to PR review workflow" src="docs/diagrams/bmo-respond-pr-review.svg" />
 
 | When to use it |
 |----------------|

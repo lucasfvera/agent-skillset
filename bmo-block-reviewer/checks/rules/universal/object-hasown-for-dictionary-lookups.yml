@@ -1,0 +1,22 @@
+id: object-hasown-for-dictionary-lookups
+language: TypeScript
+severity: error
+message: "Use `Object.hasOwn(map, key)` instead of dynamic `key in map` dictionary lookups."
+note: "The `in` operator matches inherited `Object.prototype` keys like `'constructor'` and `'toString'`. Replace `key in map` with `Object.hasOwn(map, key)` (keep literal `'prop' in obj` for union narrowing)."
+metadata:
+  domain: core
+  tier: issue
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: binary_expression
+  all:
+    - has:
+        field: operator
+        regex: ^in$
+    - has:
+        field: left
+        not:
+          any:
+            - kind: string
+            - kind: private_property_identifier

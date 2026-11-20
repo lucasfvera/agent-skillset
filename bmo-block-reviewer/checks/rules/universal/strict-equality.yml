@@ -1,0 +1,13 @@
+id: strict-equality
+language: TypeScript
+severity: error
+message: Use strict equality (`===` / `!==`) instead of loose equality (`==` / `!=`).
+note: Replace `==` with `===` and `!=` with `!==` so type coercion never masks `null`, `undefined`, or numeric mismatches.
+metadata:
+  domain: core
+  tier: issue
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  any:
+    - pattern: $A == $B
+    - pattern: $A != $B

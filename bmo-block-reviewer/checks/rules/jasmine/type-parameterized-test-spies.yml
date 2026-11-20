@@ -1,0 +1,18 @@
+id: type-parameterized-test-spies
+language: TypeScript
+severity: error
+files:
+  - '**/*.spec.ts'
+  - '**/*.test.ts'
+message: Parameterize `jasmine.Spy` with the target method signature (`jasmine.Spy<typeof svc.method>`).
+note: Bare `jasmine.Spy` loses argument and return-value type checking. Pass the method type parameter so contract drift fails at compile time.
+metadata:
+  domain: testing
+  tier: issue
+  languages: [TypeScript]
+rule:
+  kind: nested_type_identifier
+  regex: ^jasmine\.Spy$
+  not:
+    inside:
+      kind: generic_type

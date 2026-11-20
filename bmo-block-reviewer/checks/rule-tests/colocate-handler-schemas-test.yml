@@ -1,0 +1,5 @@
+id: colocate-handler-schemas
+valid:
+  - "const body = CreateOrderRequestSchema.parse(req.body);"
+invalid:
+  - "const BodySchema = z.object({ amount: z.number() });"

@@ -1,0 +1,30 @@
+id: test-names-describe-behavior
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Name tests after enduring product behavior rather than plan units (`U1`/`U2`) or issue tracker IDs."
+note: "Remove unit labels (`U1`, `U2`) and ticket numbers (`ENG-123`, `DEV-456`) from `describe`/`it`/`test` titles and state the expected behavior."
+metadata:
+  domain: testing
+  tier: style
+  coverage: partial
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: identifier
+        regex: ^(describe|it|test)$
+    - has:
+        field: arguments
+        has:
+          kind: string
+          any:
+            - regex: \bU[1-9][0-9]*\b
+            - all:
+                - regex: \b[A-Z]{2,8}-[0-9]{2,}\b
+                - not:
+                    regex: \b(UTF|SHA|AES|RSA|ISO|HTTP|RFC|ECDSA|HMAC|PKCS|CVE|GMT|UTC)-[0-9]+\b

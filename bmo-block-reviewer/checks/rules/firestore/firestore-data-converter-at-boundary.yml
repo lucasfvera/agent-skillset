@@ -1,0 +1,34 @@
+id: firestore-data-converter-at-boundary
+language: TypeScript
+severity: warning
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: Attach a `FirestoreDataConverter<T>` via `.withConverter(...)` when calling Firestore `doc()` or `collection()`.
+note: Encapsulate Firestore document mapping and runtime shape validation in a dedicated converter attached with `.withConverter(converter)` at the reference boundary.
+metadata:
+  domain: database
+  tier: style
+  languages: [TypeScript]
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: identifier
+        regex: ^(doc|collection)$
+    - not:
+        inside:
+          kind: member_expression
+          has:
+            field: property
+            kind: property_identifier
+            regex: ^withConverter$
+    - inside:
+        kind: program
+        stopBy: end
+        has:
+          kind: import_statement
+          has:
+            field: source
+            regex: (firebase/firestore|@angular/fire/firestore|@google-cloud/firestore)

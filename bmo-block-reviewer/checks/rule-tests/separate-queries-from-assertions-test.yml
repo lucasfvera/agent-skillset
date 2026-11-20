@@ -1,0 +1,8 @@
+id: separate-queries-from-assertions
+valid:
+  - "const btn = screen.getByRole('button', { name: /save/i }); expect(btn).toBeEnabled();"
+  - "const alert = await screen.findByRole('alert'); expect(alert).toBeVisible();"
+invalid:
+  - "expect(screen.getByRole('button')).toBeEnabled();"
+  - "expect(screen.queryByText('Error')).toBeNull();"
+  - "expect(await screen.findByRole('alert')).toBeVisible();"

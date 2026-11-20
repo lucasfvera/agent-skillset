@@ -1,0 +1,21 @@
+id: real-contract-types
+language: TypeScript
+severity: warning
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+  - '**/*.d.ts'
+message: "Avoid double type assertions (`as unknown as T`); use the producing contract type or a runtime type guard."
+note: "Replace `value as unknown as Target` with a schema parse, converter, or explicit type-guard function."
+metadata:
+  domain: core
+  tier: style
+  coverage: partial
+  languages: [TypeScript, Tsx]
+rule:
+  kind: as_expression
+  has:
+    kind: as_expression
+    has:
+      kind: predefined_type
+      regex: ^unknown$

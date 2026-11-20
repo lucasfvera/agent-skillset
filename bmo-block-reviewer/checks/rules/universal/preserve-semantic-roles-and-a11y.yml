@@ -1,0 +1,62 @@
+id: preserve-semantic-roles-and-a11y
+language: Html
+severity: error
+ignores:
+  - '**/docs/**'
+  - '**/public/**'
+message: "Preserve native HTML semantics: avoid `role=\"listitem\"` on `<a>` and provide `alt` on every `<img>`."
+note: "Wrap link lists in `<ul><li><a>` instead of placing `role=\"listitem\"` on `<a>`, and add descriptive `alt` (or `alt=\"\"` for decorative images) to every `<img>`."
+metadata:
+  domain: frontend
+  tier: issue
+  coverage: partial
+  languages: [Html]
+rule:
+  all:
+    - any:
+        - kind: start_tag
+        - kind: self_closing_tag
+    - any:
+        - all:
+            - has:
+                kind: tag_name
+                regex: ^a$
+            - has:
+                kind: attribute
+                all:
+                  - has:
+                      kind: attribute_name
+                      regex: ^role$
+                  - has:
+                      kind: quoted_attribute_value
+                      regex: ^["']listitem["']$
+        - all:
+            - has:
+                kind: tag_name
+                regex: ^img$
+            - not:
+                has:
+                  kind: attribute
+                  has:
+                    kind: attribute_name
+                    regex: ^(alt|\[alt\]|\[attr\.alt\])$
+            - not:
+                has:
+                  kind: attribute
+                  all:
+                    - has:
+                        kind: attribute_name
+                        regex: ^aria-hidden$
+                    - has:
+                        kind: quoted_attribute_value
+                        regex: ^["']true["']$
+            - not:
+                has:
+                  kind: attribute
+                  all:
+                    - has:
+                        kind: attribute_name
+                        regex: ^role$
+                    - has:
+                        kind: quoted_attribute_value
+                        regex: ^["'](presentation|none)["']$

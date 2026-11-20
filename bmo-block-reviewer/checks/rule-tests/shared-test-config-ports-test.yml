@@ -1,0 +1,9 @@
+id: shared-test-config-ports
+valid:
+  - "server.listen(0);"
+  - "server.listen(TEST_PORTS.AUTH_API);"
+  - "const cfg = { port: 0 };"
+  - "const cfg2 = { port: testConfig.port };"
+invalid:
+  - "server.listen(3000);"
+  - "const cfg = { port: 8080 };"

@@ -1,0 +1,7 @@
+id: no-locator-type-assertions
+valid:
+  - "const btn = screen.getByRole('button', { name: /save/i });"
+  - "const input = screen.getByRole<HTMLInputElement>('textbox');"
+invalid:
+  - "const input = screen.getByLabelText('Email') as HTMLInputElement;"
+  - "const btn = getByRole('button') as HTMLButtonElement;"

@@ -1,0 +1,45 @@
+id: no-transaction-for-single-read
+language: TypeScript
+severity: error
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Do not wrap a read-only database query inside a `.transaction(...)` block."
+note: "Run single reads through the standard non-transaction query path; reserve transactions for multi-step writes or explicit locking (`forUpdate`)."
+metadata:
+  domain: database
+  tier: issue
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: member_expression
+        has:
+          field: property
+          kind: property_identifier
+          regex: ^transaction$
+    - has:
+        field: arguments
+        has:
+          any:
+            - kind: arrow_function
+            - kind: function_expression
+          all:
+            - has:
+                kind: member_expression
+                stopBy: end
+                has:
+                  field: property
+                  kind: property_identifier
+                  regex: ^(select|findFirst|findMany|findUnique|findOne)$
+            - not:
+                has:
+                  kind: member_expression
+                  stopBy: end
+                  has:
+                    field: property
+                    kind: property_identifier
+                    regex: ^(insert|update|delete|upsert|execute|save|create|remove|forUpdate|forShare)$

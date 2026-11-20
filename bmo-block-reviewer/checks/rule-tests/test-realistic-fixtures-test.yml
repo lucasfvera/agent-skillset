@@ -1,0 +1,9 @@
+id: test-realistic-fixtures
+valid:
+  - "const order = { id: '550e8400-e29b-41d4-a716-446655440000' };"
+  - "const user = { userId: 'usr_01HV8X9Z2K3M4N5P6Q7R8S9T0V' };"
+  - "const item = { label: 'item-1' };"
+invalid:
+  - "const user = { id: 'user-1' };"
+  - "const transfer = { txId: 'tx-123' };"
+  - "const row = { account_id: 'test-id' };"

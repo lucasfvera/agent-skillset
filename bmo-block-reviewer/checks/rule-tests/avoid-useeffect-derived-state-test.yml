@@ -1,0 +1,8 @@
+id: avoid-useeffect-derived-state
+valid:
+  - "const fullName = `${first} ${last}`;"
+  - "useEffect(() => { const sub = store.subscribe(setCount); return () => sub.unsubscribe(); }, [store]);"
+  - "useEffect(() => { document.title = title; }, [title]);"
+invalid:
+  - "useEffect(() => { setFullName(`${first} ${last}`); }, [first, last]);"
+  - "useEffect(() => { setIsValid(email.includes('@')); }, [email]);"

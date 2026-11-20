@@ -1,0 +1,14 @@
+id: infer-primitive-signal-types
+valid:
+  - const loading = signal(false);
+  - const label = input('Submit');
+  - const count = signal(0);
+  - const email = signal<string | null>(null);
+  - const user = signal<User | undefined>(undefined);
+  - const variant = input<'primary' | 'secondary'>('primary');
+invalid:
+  - const loading = signal<boolean>(false);
+  - const saving = signal<boolean>(true);
+  - const email = signal<string>('');
+  - const label = input<string>('jordan@acme.com');
+  - const count = signal<number>(0);

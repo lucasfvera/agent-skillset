@@ -1,0 +1,31 @@
+id: no-locator-type-assertions
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Omit redundant `as HTML...Element` type assertions on `getBy*`/`queryBy*`/`findBy*` query results."
+note: "Use the element type returned by the query helper directly (or generic `getByRole<HTMLInputElement>(...)` when narrowing is required)."
+metadata:
+  domain: testing
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx]
+rule:
+  kind: as_expression
+  all:
+    - has:
+        kind: call_expression
+        has:
+          field: function
+          any:
+            - kind: identifier
+              regex: ^(get|query|find)(All)?By[A-Z]
+            - kind: member_expression
+              has:
+                field: property
+                kind: property_identifier
+                regex: ^(get|query|find)(All)?By[A-Z]
+    - has:
+        kind: type_identifier
+        regex: ^HTML[A-Za-z]*Element$

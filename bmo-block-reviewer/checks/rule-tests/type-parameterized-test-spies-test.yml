@@ -1,0 +1,7 @@
+id: type-parameterized-test-spies
+valid:
+  - "let saveSpy: jasmine.Spy<typeof svc.save>;"
+  - "let mockAuth: jasmine.SpyObj<AccountAuthenticator>;"
+invalid:
+  - "let saveSpy: jasmine.Spy;"
+  - "type AuthStub = { logout: jasmine.Spy };"

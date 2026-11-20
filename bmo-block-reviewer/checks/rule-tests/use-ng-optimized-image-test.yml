@@ -1,0 +1,8 @@
+id: use-ng-optimized-image
+valid:
+  - '<img ngSrc="home/logo.svg" alt="" width="40" height="40" />'
+  - '<img [ngSrc]="heroUrl" alt="Hero" fill priority />'
+  - '<img src="data:image/svg+xml;base64,PHN2Zz4=" alt="" />'
+invalid:
+  - '<img src="home/footer-logo.svg" alt="" width="40" height="40" />'
+  - '<img [src]="card.thumbnailUrl" alt="Preview" />'
