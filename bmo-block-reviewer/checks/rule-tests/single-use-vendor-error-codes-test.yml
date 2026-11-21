@@ -1,0 +1,10 @@
+id: single-use-vendor-error-codes
+valid:
+  - |
+    // PostgreSQL unique_violation (https://www.postgresql.org/docs/current/errcodes-appendix.html)
+    if (err.code === '23505') { return conflict(); }
+  - "if (err.code === 'ECONNREFUSED') { return retry(); }"
+  - "if (err.code === PG_UNIQUE_VIOLATION) { return conflict(); }"
+invalid:
+  - "if (err.code === '23505') { return conflict(); }"
+  - "if (dbErr.code === '40P01') { return retry(); }"

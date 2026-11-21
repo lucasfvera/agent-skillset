@@ -1,0 +1,7 @@
+id: reuse-shared-test-mocks
+valid:
+  - "const svc = createMockOrderService();"
+  - "const stub: Pick<Logger, 'info'> = { info: () => {} };"
+invalid:
+  - "handler({} as never);"
+  - "const client = mockFn as never;"

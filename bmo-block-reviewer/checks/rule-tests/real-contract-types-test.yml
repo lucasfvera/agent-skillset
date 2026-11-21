@@ -1,0 +1,8 @@
+id: real-contract-types
+valid:
+  - "const parsed: UserProfile = toProfile(raw);"
+  - "const el = target as HTMLElement;"
+  - "const raw = payload as unknown;"
+invalid:
+  - "const user = raw as unknown as UserProfile;"
+  - "return doc as unknown as OrderRecord;"

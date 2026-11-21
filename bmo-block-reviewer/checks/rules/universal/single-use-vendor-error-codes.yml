@@ -1,0 +1,40 @@
+id: single-use-vendor-error-codes
+language: TypeScript
+severity: warning
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Add a brief vendor-doc comment above hardcoded 5-character `SQLSTATE` error code checks."
+note: "Add a comment naming the database condition and doc link (e.g. `// PostgreSQL 23505 unique_violation — https://www.postgresql.org/docs/current/errcodes-appendix.html`)."
+metadata:
+  domain: database
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: if_statement
+  all:
+    - has:
+        field: condition
+        has:
+          kind: binary_expression
+          stopBy: end
+          all:
+            - has:
+                field: operator
+                regex: ^(===|!==)$
+            - has:
+                field: left
+                kind: member_expression
+                has:
+                  field: property
+                  kind: property_identifier
+                  regex: ^code$
+            - has:
+                field: right
+                kind: string
+                regex: ^['"][0-9]{2}[0-9A-Z]{3}['"]$
+    - not:
+        follows:
+          kind: comment
+          stopBy: neighbor

@@ -1,0 +1,20 @@
+id: separate-queries-from-assertions
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Assign `screen.*By*` query results to a named variable before passing them into `expect(...)`."
+note: "Write `const submitBtn = screen.getByRole('button', { name: /save/i }); expect(submitBtn)...` to keep Act/Query separate from Assert."
+metadata:
+  domain: testing
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  any:
+    - pattern: expect(screen.$QUERY($$$))
+    - pattern: expect(await screen.$QUERY($$$))
+constraints:
+  QUERY:
+    regex: ^(get|query|find)(All)?By[A-Z]

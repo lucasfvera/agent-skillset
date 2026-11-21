@@ -1,0 +1,13 @@
+id: object-hasown-for-dictionary-lookups
+valid:
+  - "if (Object.hasOwn(map, key)) {}"
+  - "if ('error' in response) {}"
+  - "for (const k in obj) {}"
+  - |
+    class Box {
+      #val = 1;
+      static isBox(x: object) { return #val in x; }
+    }
+invalid:
+  - "if (key in errorMap) {}"
+  - "return candidate.trim() in KNOWN_CODES;"

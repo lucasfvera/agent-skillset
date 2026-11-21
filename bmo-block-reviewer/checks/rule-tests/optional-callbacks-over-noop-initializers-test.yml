@@ -1,0 +1,19 @@
+id: optional-callbacks-over-noop-initializers
+valid:
+  - |
+    class Picker {
+      private onChange?: (value: string) => void;
+    }
+  - |
+    class Counter {
+      reset = () => { this.count = 0; };
+    }
+invalid:
+  - |
+    class Picker {
+      private onChange: (value: string) => void = () => {};
+    }
+  - |
+    class Picker {
+      onTouched = () => {};
+    }

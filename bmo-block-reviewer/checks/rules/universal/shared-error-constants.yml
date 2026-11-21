@@ -1,0 +1,60 @@
+id: shared-error-constants
+language: TypeScript
+severity: error
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: Avoid branching on free-form `error.message` string literals; compare typed error classes or shared error codes instead.
+note: Use `instanceof DomainError` or compare `error.code` against a shared constant/enum instead of matching raw `.message` text.
+metadata:
+  domain: backend
+  tier: issue
+  languages: [TypeScript, Tsx, JavaScript]
+utils:
+  error-message:
+    kind: member_expression
+    all:
+      - has:
+          field: property
+          kind: property_identifier
+          regex: ^message$
+      - has:
+          field: object
+          any:
+            - kind: identifier
+              regex: ^(?:e|ex|err|error|exception|caught|cause|[a-zA-Z0-9_]*(?:Err|Error)|[a-z0-9_]*_err(?:or)?)$
+            - kind: member_expression
+              has:
+                field: property
+                kind: property_identifier
+                regex: ^(?:err|error|exception|cause|[a-zA-Z0-9_]*(?:Err|Error)|[a-z0-9_]*_err(?:or)?)$
+rule:
+  any:
+    - kind: binary_expression
+      all:
+        - has:
+            field: operator
+            regex: ^(===|!==|==|!=)$
+        - has:
+            field: left
+            matches: error-message
+        - has:
+            field: right
+            kind: string
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            kind: member_expression
+            all:
+              - has:
+                  field: object
+                  matches: error-message
+              - has:
+                  field: property
+                  kind: property_identifier
+                  regex: ^(includes|startsWith|endsWith)$
+        - has:
+            field: arguments
+            has:
+              kind: string

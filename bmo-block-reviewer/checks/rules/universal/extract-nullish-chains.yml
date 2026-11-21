@@ -1,0 +1,41 @@
+id: extract-nullish-chains
+language: TypeScript
+severity: warning
+message: "Extract multi-step `??` fallback chains into a named intermediate variable or helper."
+note: "Assign `const resolved = a ?? b ?? c;` before passing, returning, or combining it so fallback precedence stays explicit."
+metadata:
+  domain: core
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: binary_expression
+  all:
+    - has:
+        field: operator
+        regex: ^\?\?$
+    - has:
+        field: left
+        kind: binary_expression
+        has:
+          field: operator
+          regex: ^\?\?$
+    - not:
+        inside:
+          kind: binary_expression
+          has:
+            field: operator
+            regex: ^\?\?$
+    - any:
+        - not:
+            inside:
+              kind: variable_declarator
+        - has:
+            field: left
+            kind: binary_expression
+            has:
+              field: left
+              kind: binary_expression
+              has:
+                field: operator
+                regex: ^\?\?$

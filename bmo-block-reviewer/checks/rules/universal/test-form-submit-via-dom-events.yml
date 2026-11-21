@@ -1,0 +1,22 @@
+id: test-form-submit-via-dom-events
+language: TypeScript
+severity: error
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Trigger form submissions via DOM `submit` events or submit-button clicks instead of bracket-calling `['onSubmit']()`."
+note: "Dispatch `new Event('submit')` on the `<form>` element or click the enabled submit button so template bindings and disabled guards run."
+metadata:
+  domain: testing
+  tier: issue
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: call_expression
+  has:
+    field: function
+    kind: subscript_expression
+    has:
+      field: index
+      kind: string
+      regex: ^['"](onSubmit|handleSubmit|submit)['"]$

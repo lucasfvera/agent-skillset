@@ -1,0 +1,64 @@
+id: extract-named-predicates
+language: TypeScript
+severity: warning
+message: "Extract 4+ clause `&&`/`||` conditions into a named boolean variable or predicate helper."
+note: "Move complex multi-clause boolean logic into a helper or `const isEligible = ...` that names the domain question."
+metadata:
+  domain: core
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx]
+rule:
+  kind: binary_expression
+  all:
+    - has:
+        field: operator
+        regex: ^(&&|\|\|)$
+    - inside:
+        kind: parenthesized_expression
+        inside:
+          kind: if_statement
+    - not:
+        inside:
+          stopBy: end
+          any:
+            - kind: function_declaration
+              has:
+                field: return_type
+                has:
+                  kind: type_predicate
+            - kind: arrow_function
+              has:
+                field: return_type
+                has:
+                  kind: type_predicate
+            - kind: method_definition
+              has:
+                field: return_type
+                has:
+                  kind: type_predicate
+    - any:
+        - has:
+            kind: binary_expression
+            all:
+              - has:
+                  field: operator
+                  regex: ^(&&|\|\|)$
+              - has:
+                  kind: binary_expression
+                  has:
+                    field: operator
+                    regex: ^(&&|\|\|)$
+        - all:
+            - has:
+                field: left
+                kind: binary_expression
+                has:
+                  field: operator
+                  regex: ^(&&|\|\|)$
+            - has:
+                field: right
+                kind: binary_expression
+                has:
+                  field: operator
+                  regex: ^(&&|\|\|)$

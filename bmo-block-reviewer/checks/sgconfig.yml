@@ -1,0 +1,12 @@
+ruleDirs:
+  - rules/universal
+  - rules/angular
+  - rules/angular-v19
+  - rules/react
+  - rules/jasmine
+  - rules/testing-library
+  - rules/firestore
+  - rules/zod
+  - rules/path-aliases
+testConfigs:
+  - testDir: rule-tests

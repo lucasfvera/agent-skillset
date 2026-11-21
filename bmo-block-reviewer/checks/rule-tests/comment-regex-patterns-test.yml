@@ -1,0 +1,13 @@
+id: comment-regex-patterns
+valid:
+  - |
+    // Matches GA4 measurement IDs (G- followed by uppercase alphanumerics).
+    const GA_ID = /^G-[A-Z0-9]+$/;
+  - |
+    /** Enforces lowercase kebab-case route slugs. */
+    export const SLUG_RE = /^[a-z0-9-]+$/;
+invalid:
+  - |
+    const GA_ID = /^G-[A-Z0-9]+$/;
+  - |
+    export const SLUG_RE = /^[a-z0-9-]+$/;

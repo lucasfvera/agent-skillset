@@ -1,0 +1,32 @@
+id: use-ng-optimized-image
+language: Html
+severity: warning
+ignores:
+  - '**/index.html'
+  - '**/docs/**'
+  - '**/public/**'
+message: "Use Angular `NgOptimizedImage` (`ngSrc` with `width` and `height`, or `fill`) instead of raw `src` on `<img>`."
+note: "Import `NgOptimizedImage`, replace `src`/`[src]` with `ngSrc`/`[ngSrc]`, specify `width` and `height` (or `fill`), and add `priority` on above-the-fold images."
+metadata:
+  domain: frontend
+  tier: style
+  coverage: full
+  languages: [Html]
+rule:
+  all:
+    - any:
+        - kind: start_tag
+        - kind: self_closing_tag
+    - has:
+        kind: tag_name
+        regex: ^img$
+    - has:
+        kind: attribute
+        all:
+          - has:
+              kind: attribute_name
+              regex: ^(src|\[src\])$
+          - not:
+              has:
+                kind: quoted_attribute_value
+                regex: ^["'](data:|blob:)

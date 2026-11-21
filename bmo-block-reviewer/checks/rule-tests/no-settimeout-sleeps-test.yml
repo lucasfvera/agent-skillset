@@ -1,0 +1,11 @@
+id: no-settimeout-sleeps
+valid:
+  - "await fixture.whenStable();"
+  - "await new Promise((r) => setTimeout(r, 0));"
+  - "await new Promise((r) => setTimeout(r));"
+  - "const timer = setTimeout(onDone, 100);"
+  - "await new Promise<void>((resolve) => emitter.once('done', resolve));"
+invalid:
+  - "await new Promise((resolve) => setTimeout(resolve, 100));"
+  - "await new Promise((r) => { setTimeout(r, 50); });"
+  - "await new Promise((r) => setTimeout(r, delayMs));"

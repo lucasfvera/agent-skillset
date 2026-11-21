@@ -1,0 +1,9 @@
+id: extract-named-predicates
+valid:
+  - "if (isReady && isSignedIn) {}"
+  - "if (a && b && c) {}"
+  - "const canPublish = a && b && c && d; if (canPublish) {}"
+  - "function isCodedError(e: unknown): e is { code: string } { if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') return true; return false; }"
+invalid:
+  - "if (a && b && c && d) {}"
+  - "if (a && b || c && d) {}"

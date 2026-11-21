@@ -1,6 +1,6 @@
 # Backend review rules (`backend`)
 
-Apply when the diff touches HTTP/gRPC/message handlers, routes, middleware, services, wire schemas/protos, or generated clients.
+Apply when the diff touches HTTP/gRPC/message handlers, routes, middleware, SDK wrappers, services, wire schemas/protos, or generated clients.
 
 ## 1. Strict issues (`[issue]`)
 
@@ -10,6 +10,7 @@ Check these first. Every violation is a boundary contract bug, security/error le
 - **[generic-errors-to-callers]** Return a generic internal error message to callers on unmapped failures and log the full error details server-side only, never leaking raw database or driver errors.
 - **[map-upstream-errors-to-http]** Map client/validation failures to `4xx`, local service faults to `5xx`, and upstream/transport failures to `502` at the HTTP boundary without forwarding internal proto codes in the HTTP body.
 - **[auth-identity-is-401]** Map upstream rejection of the caller's session identity to `401 Unauthorized`, not `500`.
+- **[keep-sdk-wrappers-thin-passthroughs]** Keep low-level SDK wrapper services as thin pass-throughs that surface raw SDK errors, handling flow-specific error suppression (such as anti-enumeration) in the calling feature controller.
 - **[keep-proto-success-envelopes]** Preserve existing `{ success, data?, error? }` proto response envelopes across sibling RPCs rather than flattening a single payload field onto the top-level response.
 - **[reproducible-codegen-config]** Fix the code generator configuration so generated clients are reproducible; never hand-edit generated files.
 - **[dispatch-by-sent-field]** Resolve lookups from the explicit field the caller populated rather than sniffing UUID format or echoing unmatched IDs back unchanged.

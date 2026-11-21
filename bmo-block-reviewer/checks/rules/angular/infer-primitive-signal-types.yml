@@ -1,0 +1,43 @@
+id: infer-primitive-signal-types
+language: TypeScript
+severity: warning
+message: Omit redundant primitive generic type arguments on `signal()`/`input()` when TypeScript infers the type from the literal default.
+note: Write `signal(false)`, `signal('')`, or `input(0)` instead of `signal<boolean>(false)`, `signal<string>('')`, or `input<number>(0)`. Keep explicit generics for unions (e.g. `signal<string | null>(null)`).
+metadata:
+  domain: frontend
+  tier: style
+  languages: [TypeScript]
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: identifier
+        regex: ^(signal|input)$
+    - any:
+        - all:
+            - has:
+                field: type_arguments
+                regex: ^<boolean>$
+            - has:
+                field: arguments
+                has:
+                  any:
+                    - kind: 'true'
+                    - kind: 'false'
+        - all:
+            - has:
+                field: type_arguments
+                regex: ^<string>$
+            - has:
+                field: arguments
+                has:
+                  kind: string
+        - all:
+            - has:
+                field: type_arguments
+                regex: ^<number>$
+            - has:
+                field: arguments
+                has:
+                  kind: number

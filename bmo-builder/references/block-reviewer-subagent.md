@@ -9,9 +9,14 @@ You are reviewing **one delivery block** from a `bmo-step-deliver` review digest
 ## Your job
 
 1. Read and follow `{{SKILLS_DIR}}/bmo-block-reviewer/SKILL.md`.
-2. Load only the domain catalog files under `{{SKILLS_DIR}}/bmo-block-reviewer/references/` (`frontend.md`, `backend.md`, `database.md`, `testing.md`) triggered by the files listed below.
-3. Inspect the **actual git diff** for every file in this block (`git -C "{{GIT_ROOT_ABSOLUTE_PATH}}" diff`). Use handoff text as context only.
-4. Run **Pass 1 (`[issue]`)** (correctness, contracts, security, performance, test validity) before **Pass 2 (`[style]`)** (structure, conventions, readability) and return findings in the `bmo-block-reviewer` output shape.
+2. Check **Deterministic scan** below: when the parent orchestrator already ran `checks/run-checks.py`, skip re-checking the rule IDs listed under `Checked rules:` and focus on remaining prose rules. When marked `unavailable`, check every prose rule as backup.
+3. Load only the domain catalog files under `{{SKILLS_DIR}}/bmo-block-reviewer/references/` (`frontend.md`, `backend.md`, `database.md`, `testing.md`) triggered by the files listed below.
+4. Inspect the **actual git diff** for every file in this block (`git -C "{{GIT_ROOT_ABSOLUTE_PATH}}" diff`). Use handoff text as context only.
+5. Run **Pass 1 (`[issue]`)** (correctness, contracts, security, performance, test validity) before **Pass 2 (`[style]`)** (structure, conventions, readability) and return findings in the `bmo-block-reviewer` output shape.
+
+## Deterministic scan (already run by parent)
+
+{{DETERMINISTIC_SCAN_SUMMARY}}
 
 ## Context
 

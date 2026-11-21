@@ -1,0 +1,11 @@
+id: no-any
+valid:
+  - "const x: unknown = JSON.parse(raw);"
+  - "const fn = (err: Error): string => err.message;"
+  - "// any comment mentioning any is fine"
+  - 'const msg = "any string";'
+invalid:
+  - "const x: any = 1;"
+  - "const y = x as any;"
+  - "function parse(input: any): string { return String(input); }"
+  - "const items: Array<any> = [];"

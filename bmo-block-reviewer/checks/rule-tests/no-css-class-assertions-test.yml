@@ -1,0 +1,11 @@
+id: no-css-class-assertions
+valid:
+  - "expect(inputEl.getAttribute('aria-invalid')).toBe('true');"
+  - "expect(submitBtn.disabled).toBeTrue();"
+  - "expect(menuEl.getAttribute('aria-expanded')).toBe('false');"
+invalid:
+  - "expect(inputEl).toHaveClass('input--error');"
+  - "expect(modal).toHaveStyle({ display: 'none' });"
+  - "expect(inputEl.classList).toContain('form-field__input--error');"
+  - "expect(header?.classList.contains('header-nav--compact')).toBeFalse();"
+  - "expect(badge.className).toContain('active');"

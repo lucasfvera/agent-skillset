@@ -1,0 +1,21 @@
+id: test-user-event
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: Prefer `userEvent` over `fireEvent` for simulating user interactions in Testing Library specs.
+note: Use `userEvent.setup()` (`click`, `type`, `keyboard`, etc.) so focus, blur, and pointer sequences match real users; reserve `fireEvent` only for events `userEvent` cannot simulate.
+metadata:
+  domain: testing
+  tier: style
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: call_expression
+  has:
+    field: function
+    kind: member_expression
+    has:
+      field: object
+      kind: identifier
+      regex: ^fireEvent$

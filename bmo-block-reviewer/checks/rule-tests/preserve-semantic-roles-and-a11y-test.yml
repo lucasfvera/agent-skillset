@@ -1,0 +1,10 @@
+id: preserve-semantic-roles-and-a11y
+valid:
+  - '<ul><li><a href="/docs">Docs</a></li></ul>'
+  - '<img ngSrc="hero.png" alt="Robot arm" width="400" height="300" />'
+  - '<img src="divider.svg" alt="" />'
+  - '<img [ngSrc]="url" [alt]="label" width="80" height="80" />'
+  - '<img src="bg.svg" aria-hidden="true" />'
+invalid:
+  - '<a role="listitem" href="/docs">Docs</a>'
+  - '<img src="hero.png" width="400" height="300" />'

@@ -1,0 +1,42 @@
+id: comment-regex-patterns
+language: TypeScript
+severity: warning
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Add a brief comment above regex declarations stating what pattern is matched and which contract it enforces."
+note: "Place a one-line `//` or `/** ... */` comment immediately above the regex constant explaining the matched format."
+metadata:
+  domain: core
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  any:
+    - kind: lexical_declaration
+      all:
+        - has:
+            kind: variable_declarator
+            has:
+              field: value
+              kind: regex
+        - not:
+            inside:
+              kind: export_statement
+        - not:
+            follows:
+              kind: comment
+              stopBy: neighbor
+    - kind: export_statement
+      all:
+        - has:
+            kind: lexical_declaration
+            has:
+              kind: variable_declarator
+              has:
+                field: value
+                kind: regex
+        - not:
+            follows:
+              kind: comment
+              stopBy: neighbor

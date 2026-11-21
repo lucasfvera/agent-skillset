@@ -1,0 +1,7 @@
+id: generic-errors-to-callers
+valid:
+  - "res.status(500).json({ error: 'Internal server error' });"
+  - "res.status(400).json({ code: ERROR_CODES.INVALID_INPUT });"
+invalid:
+  - "res.status(500).json({ error: err.message });"
+  - "res.send({ message: error.stack });"

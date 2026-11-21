@@ -1,0 +1,28 @@
+id: prefer-design-tokens
+language: Css
+severity: warning
+ignores:
+  - '**/*token*'
+  - '**/*palette*'
+  - '**/*theme*'
+  - '**/*variable*'
+  - '**/styles/**'
+  - '**/docs/**'
+  - '**/public/**'
+  - '**/*.html'
+message: "Prefer design-system CSS tokens (`var(--...)`) over hardcoded hex color literals in component styles."
+note: "Reference an existing design token (`var(--color-...)`) or define a shared token in the palette/tokens stylesheet."
+metadata:
+  domain: frontend
+  tier: style
+  coverage: partial
+  languages: [Css]
+rule:
+  kind: declaration
+  all:
+    - has:
+        kind: color_value
+    - has:
+        kind: property_name
+        not:
+          regex: ^--

@@ -1,0 +1,42 @@
+id: no-css-class-assertions
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Assert accessible attributes (`aria-*`, role, disabled) or visible behavior instead of CSS classes or inline styles."
+note: "Replace `toHaveClass`, `toHaveStyle`, or `classList`/`className` assertions with semantic state checks (or remove purely visual unit assertions)."
+metadata:
+  domain: testing
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  any:
+    - kind: call_expression
+      has:
+        field: function
+        kind: member_expression
+        all:
+          - has:
+              field: object
+              pattern: expect($$$)
+          - has:
+              field: property
+              kind: property_identifier
+              regex: ^(toHaveClass|toHaveStyle)$
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            kind: identifier
+            regex: ^expect$
+        - has:
+            field: arguments
+            has:
+              kind: member_expression
+              stopBy: end
+              has:
+                field: property
+                kind: property_identifier
+                regex: ^(classList|className)$

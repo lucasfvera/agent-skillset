@@ -1,0 +1,42 @@
+id: generic-errors-to-callers
+language: TypeScript
+severity: error
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Do not return raw `error.message` or `error.stack` fields directly in HTTP response bodies."
+note: "Log the full error server-side and return a generic message or mapped public error code to callers."
+metadata:
+  domain: backend
+  tier: issue
+  coverage: partial
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: member_expression
+        has:
+          field: property
+          kind: property_identifier
+          regex: ^(json|send)$
+    - has:
+        field: arguments
+        has:
+          kind: object
+          has:
+            kind: pair
+            stopBy: end
+            has:
+              field: value
+              kind: member_expression
+              all:
+                - has:
+                    field: object
+                    kind: identifier
+                    regex: ^(err|error|e|cause|ex)$
+                - has:
+                    field: property
+                    kind: property_identifier
+                    regex: ^(message|stack)$

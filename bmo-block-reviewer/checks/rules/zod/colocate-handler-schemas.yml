@@ -1,0 +1,18 @@
+id: colocate-handler-schemas
+language: TypeScript
+severity: warning
+files:
+  - '**/handlers/**'
+ignores:
+  - '**/*schema*'
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Move inline `z.object(...)` definitions out of handler files into a sibling `*.schema.ts` file."
+note: "Colocate request/response Zod schemas in a sibling schema module beside the handler and import them."
+metadata:
+  domain: backend
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx]
+rule:
+  pattern: z.object($$$)

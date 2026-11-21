@@ -1,0 +1,7 @@
+id: test-real-logger-off
+valid:
+  - "const logger = createLogger({ level: LogLevel.OFF });"
+  - "vi.mock('../clients/stripe');"
+invalid:
+  - "vi.mock('../shared/logger');"
+  - "jest.mock('@app/core/logger', () => ({ info: jest.fn() }));"

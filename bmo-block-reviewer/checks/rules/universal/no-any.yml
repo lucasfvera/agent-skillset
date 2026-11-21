@@ -1,0 +1,14 @@
+id: no-any
+language: TypeScript
+severity: error
+ignores:
+  - '**/*.d.ts'
+message: Avoid explicit `any`; use a concrete contract type or `unknown` narrowed by a guard.
+note: Replace `any` with the producing module's contract type, a generic parameter, or `unknown` with an explicit type guard (`instanceof Error`, Zod parse, or `typeof`).
+metadata:
+  domain: core
+  tier: issue
+  languages: [TypeScript, Tsx]
+rule:
+  kind: predefined_type
+  regex: ^any$

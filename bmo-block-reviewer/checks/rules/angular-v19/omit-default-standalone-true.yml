@@ -1,0 +1,43 @@
+id: omit-default-standalone-true
+language: TypeScript
+severity: warning
+message: "Omit default `standalone: true` and empty `imports: []` in `@Component`/`@Directive` (Angular 19+ defaults to standalone)."
+note: "Remove `standalone: true` and empty `imports: []` from `@Component(...)` or `@Directive(...)` metadata."
+metadata:
+  domain: frontend
+  tier: style
+  languages: [TypeScript]
+rule:
+  kind: pair
+  all:
+    - inside:
+        kind: object
+        inside:
+          kind: arguments
+          inside:
+            kind: call_expression
+            all:
+              - has:
+                  field: function
+                  kind: identifier
+                  regex: ^(Component|Directive)$
+              - inside:
+                  kind: decorator
+    - any:
+        - all:
+            - has:
+                field: key
+                kind: property_identifier
+                regex: ^standalone$
+            - has:
+                field: value
+                kind: 'true'
+        - all:
+            - has:
+                field: key
+                kind: property_identifier
+                regex: ^imports$
+            - has:
+                field: value
+                kind: array
+                regex: ^\[\s*\]$

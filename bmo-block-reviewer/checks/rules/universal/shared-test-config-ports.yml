@@ -1,0 +1,38 @@
+id: shared-test-config-ports
+language: TypeScript
+severity: error
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: Avoid hardcoding non-zero numeric listen ports in tests; use ephemeral port `0` or the shared test port map.
+note: Hardcoded ports collide across parallel test workers. Pass `0` for an OS-assigned port or read from the shared test config map.
+metadata:
+  domain: testing
+  tier: issue
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  any:
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            kind: member_expression
+            has:
+              field: property
+              kind: property_identifier
+              regex: ^listen$
+        - has:
+            field: arguments
+            has:
+              kind: number
+              regex: ^[1-9][0-9]{2,}$
+    - kind: pair
+      all:
+        - has:
+            field: key
+            kind: property_identifier
+            regex: ^port$
+        - has:
+            field: value
+            kind: number
+            regex: ^[1-9][0-9]{2,}$

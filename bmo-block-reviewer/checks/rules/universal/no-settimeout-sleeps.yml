@@ -1,0 +1,28 @@
+id: no-settimeout-sleeps
+language: TypeScript
+severity: error
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: Avoid non-zero `setTimeout` sleep promises in tests; await the returned promise, event helper, or stability signal directly.
+note: Replace `new Promise((r) => setTimeout(r, <ms>))` (> 0 ms) with `waitFor`, `whenStable`, fake timers (`vi.useFakeTimers` / `jasmine.clock`), or the action's own promise. Explicit `setTimeout(r, 0)` macrotask flushes are allowed.
+metadata:
+  domain: testing
+  tier: issue
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  all:
+    - kind: new_expression
+    - has:
+        field: constructor
+        kind: identifier
+        regex: ^Promise$
+    - has:
+        field: arguments
+        has:
+          pattern: setTimeout($CB, $MS)
+          stopBy: end
+constraints:
+  MS:
+    not:
+      regex: ^0(\.0+)?$

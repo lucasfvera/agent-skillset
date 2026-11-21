@@ -1,0 +1,11 @@
+id: no-empty-string-as-undefined
+language: TypeScript
+severity: error
+message: Do not coerce empty strings (`""`) to `undefined` using `|| undefined`.
+note: Validate required strings explicitly or use `?? undefined` / explicit `value === ''` checks so `""`, `0`, or `false` are never silently dropped as omitted.
+metadata:
+  domain: core
+  tier: issue
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  pattern: $EXPR || undefined

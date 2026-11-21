@@ -145,20 +145,27 @@ Do not wait for the user to type `continue` before the review sub-phase. This bu
 
 **Done for 3a:** The review digest lists every changed file in some block; every digest path is under a recorded `WORKTREE_PATH`; `git -C "$REPO_ROOT" diff --name-only` and `git -C "$REPO_ROOT" diff --cached --name-only` show no implementation files; verification ran.
 
-### 3b — Parallel block review (one subagent per block)
+### 3b — Deterministic pre-scan & parallel block review
 
-From the **Review digest**, identify each `### Block X — …` section (A, B, C, …).
+1. **Deterministic `ast-grep` pre-scan (before spawning AI subagents):** For each affected repo worktree, run:
+   ```bash
+   python3 "$SKILLS_DIR/bmo-block-reviewer/checks/run-checks.py" --repo "$WORKTREE_PATH"
+   ```
+   - Exit `1` (`[issue]` hits) or `[style]` warnings: fix every `[issue]` and actionable `[style]` hit under `WORKTREE_PATH` and re-run until zero `[issue]` hits remain (`exit 0`). Record the `Checked rules:` list so subagents skip those rules.
+   - Exit `2` (`ast-grep` unavailable): record `unavailable (prose fallback)` so subagents evaluate every prose rule as backup.
+
+2. **Parallel block review (one subagent per block):** From the **Review digest**, identify each `### Block X — …` section (A, B, C, …).
 
 For **each block**, spawn **one** read-only background subagent in parallel using your host's subagent tool:
 
 - **Mode:** read-only (review only; no file edits)
-- **Prompt:** render [references/block-reviewer-subagent.md](references/block-reviewer-subagent.md) with `SKILLS_DIR`, block name, block text, file paths, work id, and `GIT_ROOT` = that repo's `WORKTREE_PATH` (never `REPO_ROOT`).
+- **Prompt:** render [references/block-reviewer-subagent.md](references/block-reviewer-subagent.md) with `SKILLS_DIR`, block name, block text, file paths, work id, `DETERMINISTIC_SCAN_SUMMARY` (the `Checked rules:` line from step 1, or `unavailable — evaluate all prose rules`), and `GIT_ROOT` = that repo's `WORKTREE_PATH` (never `REPO_ROOT`).
 
-Each subagent reads [`bmo-block-reviewer/SKILL.md`](../bmo-block-reviewer/SKILL.md), loads only the domain catalogs (`frontend`, `backend`, `database`, `testing`) matching the block's changed files, and inspects the **actual diff** in two passes (`[issue]` first, `[style]` second).
+Each subagent reads [`bmo-block-reviewer/SKILL.md`](../bmo-block-reviewer/SKILL.md), loads only the domain catalogs (`frontend`, `backend`, `database`, `testing`) matching the block's changed files, skips rule IDs already verified by `run-checks.py`, and inspects the **actual diff** in two passes (`[issue]` first, `[style]` second).
 
 **Await** all subagent results before continuing. (If the host has no subagent tool, run `bmo-block-reviewer` sequentially per block inline.)
 
-**Done for 3b:** Every digest block has a reviewer verdict with `Catalog:` populated.
+**Done for 3b:** `run-checks.py` exited `0` (or explicit `unavailable` fallback recorded); every digest block has a reviewer verdict with `Catalog:` populated.
 
 ### 3c — Apply review fixes
 
@@ -191,20 +198,21 @@ Do **not** commit before fixes are applied.
 
 ## Phase 4 — Done
 
-### 4a — Final quality check (parallel domain fan-out)
+### 4a — Final quality check (deterministic scan + parallel domain fan-out)
 
 After all units are committed, run a **domain-scoped final review** before any PR:
 
-1. For **each affected repo** (`WORKTREE_PATH`), partition the full branch diff (`git -C "$WORKTREE_PATH" diff --name-only origin/main...HEAD` or the chosen base) into touched domains:
+1. For **each affected repo** (`WORKTREE_PATH`), run `python3 "$SKILLS_DIR/bmo-block-reviewer/checks/run-checks.py" --repo "$WORKTREE_PATH" --base <base>` against the full branch diff. Fix any `[issue]` or actionable `[style]` hit before spawning domain subagents (record `unavailable` fallback on exit `2`).
+2. Partition the full branch diff (`git -C "$WORKTREE_PATH" diff --name-only origin/main...HEAD` or the chosen base) into touched domains:
    - `frontend` (UI components, hooks, state, styles)
    - `backend` (handlers, routes, services, wire schemas/protos, generated clients)
    - `database` (SQL queries, repositories/stores, DB transactions, migrations)
    - `testing` (`*.test.*`, `*.spec.*`, test harnesses/fixtures)
    - `core` (shared utilities/configs not covered above, if any)
-2. For **each non-empty domain** in that repo, spawn **one** parallel read-only subagent using [references/block-reviewer-subagent.md](references/block-reviewer-subagent.md) with block name `Final diff — <domain>` and only the changed file paths belonging to that domain.
-3. Merge findings across all domain subagents (`[issue]` first, then `[style]`), fix every actionable finding **in that `WORKTREE_PATH`**, re-run the narrowest affected verification, and commit the final quality fixes in that worktree before moving on.
+3. For **each non-empty domain** in that repo, spawn **one** parallel read-only subagent using [references/block-reviewer-subagent.md](references/block-reviewer-subagent.md) with block name `Final diff — <domain>`, `DETERMINISTIC_SCAN_SUMMARY`, and only the changed file paths belonging to that domain.
+4. Merge findings across all domain subagents (`[issue]` first, then `[style]`), fix every actionable finding **in that `WORKTREE_PATH`**, re-run the narrowest affected verification, and commit the final quality fixes in that worktree before moving on.
 
-**Done for 4a:** Every touched domain in every affected repo has a final-diff verdict; all `[issue]` and actionable `[style]` findings are fixed and committed.
+**Done for 4a:** Deterministic branch-diff scan exited `0` (or explicit fallback recorded); every touched domain in every affected repo has a final-diff verdict; all `[issue]` and actionable `[style]` findings are fixed and committed.
 
 ### 4b — Checks (gate before any PR)
 

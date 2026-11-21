@@ -1,0 +1,22 @@
+id: catch-unknown-not-any
+language: TypeScript
+severity: error
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Narrow caught errors with `instanceof Error` or a type guard instead of casting `err as Error`."
+note: "Replace `(err as Error)` inside `catch (err: unknown)` with `if (err instanceof Error)` or a shared error type guard."
+metadata:
+  domain: core
+  tier: issue
+  coverage: partial
+  languages: [TypeScript, Tsx]
+rule:
+  kind: as_expression
+  all:
+    - inside:
+        kind: catch_clause
+        stopBy: end
+    - has:
+        kind: type_identifier
+        regex: ^Error$

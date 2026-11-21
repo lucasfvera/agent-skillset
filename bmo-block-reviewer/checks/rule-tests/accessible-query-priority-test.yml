@@ -1,0 +1,8 @@
+id: accessible-query-priority
+valid:
+  - "const btn = screen.getByRole('button', { name: /submit/i });"
+  - "const field = screen.getByLabelText('Email');"
+invalid:
+  - "const btn = screen.getByTestId('submit-btn');"
+  - "const modal = queryByTestId('confirm-modal');"
+  - "const rows = await screen.findAllByTestId('row');"

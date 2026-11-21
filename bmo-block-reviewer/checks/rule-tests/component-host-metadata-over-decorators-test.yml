@@ -1,0 +1,18 @@
+id: component-host-metadata-over-decorators
+valid:
+  - |
+    @Component({
+      selector: 'app-nav',
+      host: { '(document:keydown.escape)': 'onEscape()' },
+    })
+    export class Nav {}
+invalid:
+  - |
+    class Nav {
+      @HostListener('document:keydown.escape')
+      onEscape() {}
+    }
+  - |
+    class Nav {
+      @HostBinding('class.open') isOpen = false;
+    }

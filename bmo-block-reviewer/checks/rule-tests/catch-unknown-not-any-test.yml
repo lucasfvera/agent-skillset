@@ -1,0 +1,7 @@
+id: catch-unknown-not-any
+valid:
+  - "try { run(); } catch (err: unknown) { if (err instanceof Error) log(err.message); }"
+  - "const e = raw as Error;"
+invalid:
+  - "try { run(); } catch (err: unknown) { log((err as Error).message); }"
+  - "try { run(); } catch (e) { const err = e as Error; }"

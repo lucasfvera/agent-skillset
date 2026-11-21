@@ -1,0 +1,18 @@
+id: firestore-data-converter-at-boundary
+valid:
+  - |
+    import { doc } from 'firebase/firestore';
+    const ref = doc(firestore, 'users', uid).withConverter(userConverter);
+  - |
+    import { collection } from 'firebase/firestore';
+    const ref = collection(firestore, 'users').withConverter(userConverter);
+  - |
+    // Non-firestore doc() helper should never trigger
+    const html = doc('title', 'body');
+invalid:
+  - |
+    import { doc } from 'firebase/firestore';
+    const ref = doc(firestore, 'users', uid);
+  - |
+    import { collection } from '@angular/fire/firestore';
+    const ref = collection(firestore, 'users');

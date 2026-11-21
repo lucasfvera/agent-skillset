@@ -1,0 +1,33 @@
+id: test-real-logger-off
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Use the real logger silenced (`LogLevel.OFF`) with spies instead of module-mocking the logger."
+note: "Remove `vi.mock`/`jest.mock` on the logger module and pass or configure the real logger with output disabled, spying only when asserting log calls."
+metadata:
+  domain: testing
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: member_expression
+        all:
+          - has:
+              field: object
+              kind: identifier
+              regex: ^(vi|jest)$
+          - has:
+              field: property
+              kind: property_identifier
+              regex: ^mock$
+    - has:
+        field: arguments
+        has:
+          kind: string
+          regex: (?i)(^|[/'"-])logger([/'"\.-]|$)

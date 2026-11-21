@@ -1,0 +1,6 @@
+id: no-custom-uuid-guards
+valid:
+  - "const parsed = uuidSchema.parse(id);"
+  - "const slugRe = /^[a-z0-9-]+$/;"
+invalid:
+  - "const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;"

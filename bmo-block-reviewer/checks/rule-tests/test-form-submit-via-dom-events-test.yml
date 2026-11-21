@@ -1,0 +1,7 @@
+id: test-form-submit-via-dom-events
+valid:
+  - "formEl.dispatchEvent(new Event('submit'));"
+  - "submitBtn.click();"
+invalid:
+  - "await component['onSubmit']();"
+  - "component['handleSubmit']();"

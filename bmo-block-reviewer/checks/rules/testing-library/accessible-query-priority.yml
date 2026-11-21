@@ -1,0 +1,25 @@
+id: accessible-query-priority
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Prefer accessible queries (`getByRole`, `getByLabelText`, `getByText`) over `*ByTestId`."
+note: "Query by ARIA role and accessible name (`getByRole('button', { name: ... })`) first; reserve `*ByTestId` for elements with no semantic role or label."
+metadata:
+  domain: testing
+  tier: style
+  coverage: full
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  kind: call_expression
+  has:
+    field: function
+    any:
+      - kind: identifier
+        regex: ^(get|query|find)(All)?ByTestId$
+      - kind: member_expression
+        has:
+          field: property
+          kind: property_identifier
+          regex: ^(get|query|find)(All)?ByTestId$

@@ -1,0 +1,7 @@
+id: test-user-event
+valid:
+  - "await userEvent.click(button);"
+  - "const user = userEvent.setup(); await user.type(input, 'hello');"
+invalid:
+  - "fireEvent.click(button);"
+  - "fireEvent.change(input, { target: { value: 'hello' } });"

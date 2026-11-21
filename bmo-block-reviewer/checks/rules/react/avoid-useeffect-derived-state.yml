@@ -1,0 +1,18 @@
+id: avoid-useeffect-derived-state
+language: TypeScript
+severity: warning
+ignores:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Avoid syncing derived state via a single synchronous `setState(...)` inside `useEffect`; compute it during render."
+note: "Compute the derived value directly during render (or with `useMemo`) instead of calling `setState` inside `useEffect`."
+metadata:
+  domain: frontend
+  tier: style
+  coverage: partial
+  languages: [TypeScript, Tsx, JavaScript]
+rule:
+  pattern: useEffect(() => { $SET($VAL); }, [$$$DEPS])
+constraints:
+  SET:
+    regex: ^set[A-Z]

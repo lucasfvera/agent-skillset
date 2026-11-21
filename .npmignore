@@ -1,1 +1,4 @@
 bmo-update-block-reviewer-skill/inbox/pending/*.md
+docs/
+__pycache__/
+*.py[cod]

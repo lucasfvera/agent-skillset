@@ -1,0 +1,18 @@
+id: reuse-shared-test-mocks
+language: TypeScript
+severity: warning
+files:
+  - '**/*.test.*'
+  - '**/*.spec.*'
+message: "Avoid `as never` shortcuts in test stubs and calls; use a typed mock or shared test helper."
+note: "Replace `as never` with a typed stub matching the contract interface or a shared mock factory."
+metadata:
+  domain: testing
+  tier: style
+  coverage: partial
+  languages: [TypeScript, Tsx]
+rule:
+  kind: as_expression
+  has:
+    kind: predefined_type
+    regex: ^never$

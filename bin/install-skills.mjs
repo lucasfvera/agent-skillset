@@ -47,6 +47,11 @@ for (const name of skills) {
   console.log(`  ✓ ${name}`);
 }
 
+const runChecksDest = path.join(targetRoot, "bmo-block-reviewer", "checks", "run-checks.py");
+if (fs.existsSync(runChecksDest)) {
+  fs.chmodSync(runChecksDest, 0o755);
+}
+
 const skillHooksDir = path.join(targetRoot, "hooks");
 fs.mkdirSync(skillHooksDir, { recursive: true });
 fs.copyFileSync(path.join(hooksSrc, "pr-checks.md"), path.join(skillHooksDir, "pr-checks.md"));
