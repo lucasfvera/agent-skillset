@@ -126,23 +126,23 @@ Do **not** use `--force` unless the user explicitly requests it.
 
 **Incremental example:** Stack is `main <- feat-1 <- feat-2 <- feat-3`. Open PRs already exist for `feat-1` and `feat-2` with matching bases. **Create:** only `feat-3` (gap). **Push:** any of `feat-1`, `feat-2`, `feat-3` whose local SHA differs from `origin/<name>` (e.g. new work on `feat-3` only → usually push just `feat-3`).
 
-## 5. PR body and title
+## 5. Draft titles, bodies, and merge-risk reports
 
-Follow [`bmo-pr/SKILL.md`](../bmo-pr/SKILL.md) (`## 4. Title` and `## 5. Body (preventing cognitive surrender)`) as the single source of truth for every slice's title and PR body:
+Follow [`bmo-pr/SKILL.md`](../bmo-pr/SKILL.md) (`## 3`, `## 4`, and `## 5`) as the single source of truth for every gap slice:
 
-- **Scope & self-containment:** Each stacked PR represents one significant, domain-focused vertical slice (~100 LOC target / ~200 LOC production-code soft ceiling, excluding tests, lockfiles, snapshots, and generated code) **with its unit/integration tests included in the same PR**.
-- **`## Intent & stack position`:**
-  - Set **Stack position** to `Part i of k — stacked on #<prev-pr-or-branch>: <1-line role of this slice in the stack>` (or `Part 1 of k — base: <default-branch>` for PR1).
-  - Include a fenced commit block for the slice's unique range (`git log --oneline <base_i>..<head_i>`, using `origin/<default-branch>..<head_1>` for PR1).
-- **`## Decisions, trade-offs & backing docs`**, **`## Failure modes & boundary risks`**, **`## How to review (product & decision focus)`**, and **`## Verification & unverified gaps`:** Populate for **this slice only**, stating what later PRs in the stack add under **Out of scope**.
-- **`## Screenshots`:** Follow [`../bmo-pr/screenshots.md`](../bmo-pr/screenshots.md) (release-free `--attach` or `gh image`, skipping cleanly without creating GitHub releases if tooling is unavailable) when the slice changes visual UI or UI copy/constants, or write `N/A — non-visual change`.
+1. **Scope:** Each slice stays self-contained (~100 LOC target / ~200 LOC production soft ceiling, with its tests included in the same PR) and describes only its own diff (`<base_i>...<head_i>`).
+2. **Stack line:** Place one line below the what/why opening: `Part i of k — depends on #<prev>.` (or `Part 1 of k.` for slice 1). After creating a child PR, append `Followed by #<child>.` to the parent body when useful.
+3. **Visual evidence:** Run [`../bmo-pr/screenshots.md`](../bmo-pr/screenshots.md) for any slice that changes UI surfaces or user-visible copy/constants (skipping release-free when tooling is absent).
+4. **Merge risk (one read-only subagent per gap slice):** Spawn one parallel read-only subagent per gap slice using [`../bmo-pr/references/merge-risk-subagent.md`](../bmo-pr/references/merge-risk-subagent.md) (which runs [`../bmo-merge-risk/SKILL.md`](../bmo-merge-risk/SKILL.md) against `<base_i>...<head_i>`) and embed each returned block under `## Merge risk` before calling `gh pr create`.
+
+**Done:** Every gap slice has a concise temporary body file with its one-line stack link, `## Evidence`, and embedded `bmo-merge-risk` subagent report.
 
 ## 6. Create PRs with GitHub CLI (gaps only)
 
-In stack order, run **`gh pr create` only for slices marked as gaps** in §3 (missing open PR with correct base).
+In bottom-up stack order (so parent PR numbers exist before child bodies reference them), run **`gh pr create` only for slices marked as gaps** in §3, ready for review by default (pass `--draft` only when requested):
 
 ```bash
-gh pr create --base <base> --head <head> --title "..." --body-file <file> --assignee <github_login>
+gh pr create --base <base> --head <head> --title "<Title>" --body-file <file> --assignee @me
 ```
 
 - PR1: `--base main` (or repo default).

@@ -1,6 +1,6 @@
 # Visual screenshots for PR bodies (release-free)
 
-Load this file when the visual check in [`SKILL.md`](SKILL.md) (`## 3. Capture screenshots when visual`) fires.
+Load this file when the visual check in [`SKILL.md`](SKILL.md) (`## 3. Capture visual evidence when UI changes`) fires.
 
 **Hard rule — never create GitHub releases, prereleases, or tags** to upload screenshots, and never commit temporary PNGs into the repository. If a release-free upload path or browser capture tool is unavailable, **skip the screenshot step cleanly** instead.
 
@@ -25,10 +25,10 @@ Verify both capture and a release-free upload path before booting the app:
      ```
 
 **When either check fails — skip cleanly (never create GitHub releases, prereleases, or tags):**
-- Set `## Screenshots` in the PR body to `Skipped — screenshot tooling unavailable in this environment` and note which tool was missing (`agent-browser`, `gh 2.99.0+ --attach`, or `gh-image`) in your chat summary so the user can attach media manually if needed.
-- Stop reading this file and continue to [`SKILL.md`](SKILL.md) `## 4. Title`.
+- Set `## Evidence` in the PR body to `- **Screenshots:** Skipped — screenshot tooling unavailable in this environment` (alongside any test evidence) and note which tool was missing (`agent-browser`, `gh 2.99.0+ --attach`, or `gh-image`) in your chat summary.
+- Stop reading this file and continue to [`SKILL.md`](SKILL.md) `## 4. Draft title and body`.
 
-**Done:** Both `agent-browser` and Path A (`--attach`) or Path B (`gh image`) are available, or `## Screenshots` is marked `Skipped` and capture is bypassed.
+**Done:** Both `agent-browser` and Path A (`--attach`) or Path B (`gh image`) are available, or `## Evidence` records `Skipped` and capture is bypassed.
 
 ---
 
@@ -122,6 +122,6 @@ agent-browser --session <anon|authed> screenshot "$OUT/<name>.png"
    gh image "$OUT/<name>.png"
    ```
 
-2. Place the returned `![...](https://github.com/user-attachments/assets/...)` Markdown URLs into `## Screenshots` in the PR body file, then run `gh pr create` / `gh pr edit`.
+2. Place the returned `![...](https://github.com/user-attachments/assets/...)` Markdown URLs under `## Evidence` (`**Before:**` / `**After:**`) in the PR body file, then continue to Step 5 (`bmo-merge-risk`) and Step 6 (`gh pr create` / `gh pr edit`).
 
 **Done:** Published PR body renders live `user-attachments` image URLs with zero GitHub releases or tags created.
