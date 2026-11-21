@@ -14,6 +14,8 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import re
@@ -40,6 +42,7 @@ ALL_PROFILES = (
     "zod",
     "path-aliases",
 )
+PINNED_AST_GREP_PKG = "@ast-grep/cli@0.51.0"
 
 
 def strip_jsonc(text: str) -> str:
@@ -81,10 +84,13 @@ def strip_jsonc(text: str) -> str:
 
 
 def load_jsonc(path: Path) -> dict:
+    if not path.is_file():
+        return {}
     try:
         data = json.loads(strip_jsonc(path.read_text(encoding="utf-8")))
         return data if isinstance(data, dict) else {}
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"warning: failed to parse {path.name}: {exc}\n")
         return {}
 
 
@@ -179,13 +185,13 @@ def resolve_ast_grep() -> list[str] | None:
     if npx:
         try:
             probe = subprocess.run(
-                [npx, "-y", "-p", "@ast-grep/cli", "ast-grep", "--version"],
+                [npx, "-y", "-p", PINNED_AST_GREP_PKG, "ast-grep", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=30,
             )
             if probe.returncode == 0 and "ast-grep" in (probe.stdout + probe.stderr).lower():
-                return [npx, "-y", "-p", "@ast-grep/cli", "ast-grep"]
+                return [npx, "-y", "-p", PINNED_AST_GREP_PKG, "ast-grep"]
         except (OSError, subprocess.SubprocessError):
             pass
     return None
@@ -195,6 +201,14 @@ def git(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", "-C", str(repo_root), *args], capture_output=True, text=True
     )
+
+
+def git_checked(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    res = git(repo_root, *args)
+    if res.returncode != 0:
+        detail = res.stderr.strip() or res.stdout.strip() or f"exit {res.returncode}"
+        raise RuntimeError(f"git {' '.join(args)} failed: {detail}")
+    return res
 
 
 def default_base_ref(repo_root: Path) -> str | None:
@@ -235,23 +249,30 @@ def collect_diff_targets(
     whole_files: set[str] = set()
 
     if staged_only:
-        res = git(repo_root, "diff", "--cached", "-U0", "--diff-filter=ACMR")
+        res = git_checked(repo_root, "diff", "--cached", "-U0", "--diff-filter=ACMR")
         for rel, lines in parse_diff_added_lines(res.stdout).items():
             added_lines.setdefault(rel, set()).update(lines)
         label = "staged diff"
     else:
-        diffs: list[str] = []
         if base_ref:
-            diffs.append(
-                git(repo_root, "diff", "-U0", "--diff-filter=ACMR", f"{base_ref}...HEAD").stdout
-            )
-        diffs.append(git(repo_root, "diff", "--cached", "-U0", "--diff-filter=ACMR").stdout)
-        diffs.append(git(repo_root, "diff", "-U0", "--diff-filter=ACMR").stdout)
+            merge_base = git_checked(repo_root, "merge-base", base_ref, "HEAD").stdout.strip()
+            # Diff merge-base directly against the working tree so committed, staged,
+            # and unstaged edits all resolve to exact working-tree line numbers.
+            res = git_checked(repo_root, "diff", "-U0", "--diff-filter=ACMR", merge_base)
+            diffs = [res.stdout]
+        elif git(repo_root, "rev-parse", "--verify", "--quiet", "HEAD").returncode == 0:
+            res = git_checked(repo_root, "diff", "-U0", "--diff-filter=ACMR", "HEAD")
+            diffs = [res.stdout]
+        else:
+            diffs = [
+                git_checked(repo_root, "diff", "--cached", "-U0", "--diff-filter=ACMR").stdout,
+                git_checked(repo_root, "diff", "-U0", "--diff-filter=ACMR").stdout,
+            ]
         for text in diffs:
             for rel, lines in parse_diff_added_lines(text).items():
                 added_lines.setdefault(rel, set()).update(lines)
 
-        untracked = git(repo_root, "ls-files", "--others", "--exclude-standard")
+        untracked = git_checked(repo_root, "ls-files", "--others", "--exclude-standard")
         for rel in untracked.stdout.splitlines():
             if rel.strip():
                 whole_files.add(rel.strip())
@@ -363,10 +384,13 @@ def run_scan(
     targets: list[Path],
     line_filter: dict[str, set[int]] | None,
 ) -> tuple[list[dict], list[str], list[str]]:
+    if not targets:
+        return [], [], []
+
     with tempfile.TemporaryDirectory(prefix="bmo-ast-grep-") as tmp:
         cfg, full_ids, partial_ids = materialize_rules(profiles, Path(tmp))
-        if (not full_ids and not partial_ids) or not targets:
-            return [], full_ids, partial_ids
+        if not full_ids and not partial_ids:
+            return [], [], []
 
         rel_targets = [str(t.relative_to(repo_root)) if t.is_relative_to(repo_root) else str(t) for t in targets]
         cmd = [
@@ -460,7 +484,8 @@ def format_markdown(
     )
     lines.append("")
     lines.append(f"Profiles: {', '.join(profiles)}")
-    lines.append(f"Checked rules ({len(checked_rules)}): {', '.join(checked_rules)}")
+    checked_display = ", ".join(checked_rules) if checked_rules else "none"
+    lines.append(f"Checked rules ({len(checked_rules)}): {checked_display}")
     if partial_rules:
         lines.append(f"Partial rules ({len(partial_rules)}, keep semantic AI pass): {', '.join(partial_rules)}")
     lines.append(f"Scope: {scope_label} ({file_count} target(s))")
@@ -562,8 +587,79 @@ def self_test() -> int:
         ):
             assert expected in hit_ids, (expected, hit_ids)
 
+    # 7. Verify diff-line filtering tracks working-tree coordinates when unstaged edits
+    #    insert lines above committed branch edits (while still ignoring unchanged base lines)
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        git_checked(repo, "init")
+        git_checked(repo, "checkout", "-B", "main")
+        sample = repo / "sample.ts"
+        sample.write_text("const keep = 1;\nconst preExisting = a == b;\nconst tail = 2;\n")
+        git_checked(repo, "add", "sample.ts")
+        git_checked(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "base")
+
+        git_checked(repo, "checkout", "-b", "feat")
+        sample.write_text(
+            "const keep = 1;\nconst preExisting = a == b;\nconst tail = 2;\nconst committedBad = c == d;\n"
+        )
+        git_checked(repo, "add", "sample.ts")
+        git_checked(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "feat")
+
+        # Insert 3 clean lines at the top and 1 unstaged violation at the bottom.
+        # preExisting shifts from line 2 -> 5 (must stay ignored);
+        # committedBad shifts from line 4 -> 7 (must still be flagged at line 7);
+        # unstagedBad is on line 8 (must be flagged at line 8).
+        sample.write_text(
+            "const top1 = 1;\n"
+            "const top2 = 2;\n"
+            "const top3 = 3;\n"
+            "const keep = 1;\n"
+            "const preExisting = a == b;\n"
+            "const tail = 2;\n"
+            "const committedBad = c == d;\n"
+            "const unstagedBad = e == f;\n"
+        )
+        diff_targets, diff_lines, _ = collect_diff_targets(repo, "main")
+        diff_findings, checked_ids, _ = run_scan(sg_cmd, repo, ["universal"], diff_targets, diff_lines)
+        eq_lines = sorted(f["line"] for f in diff_findings if f["rule_id"] == "strict-equality")
+        assert eq_lines == [7, 8], (eq_lines, diff_lines, diff_findings)
+        assert "strict-equality" in checked_ids, checked_ids
+
+        # 8. Verify non-JS/TS-only diff reports zero checked rules (so AI does not skip them)
+        git_checked(repo, "checkout", "--", "sample.ts")
+        git_checked(repo, "checkout", "-b", "docs-only", "main")
+        (repo / "notes.py").write_text("print('hi')\n")
+        py_targets, py_lines, _ = collect_diff_targets(repo, "main")
+        assert py_targets == [], py_targets
+        _, py_checked, py_partial = run_scan(sg_cmd, repo, ["universal"], py_targets, py_lines)
+        assert py_checked == [] and py_partial == [], (py_checked, py_partial)
+
+        # 9. Verify failed git diff, unknown profile, missing path, and unavailable ast-grep exit 2
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert main(["--repo", str(repo), "--base", "nonexistent-ref", "--format", "json"]) == 2
+            assert main(["--repo", str(repo), "--profiles", "universal,bogus", "--format", "json"]) == 2
+            assert main(["--repo", str(repo), "does-not-exist.ts", "--format", "json"]) == 2
+
+            prev_bin = os.environ.get("BMO_AST_GREP_BIN")
+            try:
+                os.environ["BMO_AST_GREP_BIN"] = "none"
+                assert main(["--repo", str(repo), "--format", "json"]) == 2
+            finally:
+                if prev_bin is None:
+                    os.environ.pop("BMO_AST_GREP_BIN", None)
+                else:
+                    os.environ["BMO_AST_GREP_BIN"] = prev_bin
+
     sys.stderr.write(res.stdout.strip() + "\nrun-checks self-test passed\n")
     return 0
+
+
+def emit_error(msg: str, as_json: bool) -> int:
+    if as_json:
+        print(json.dumps({"status": "error", "message": msg}))
+    else:
+        sys.stderr.write(f"error: {msg}\n")
+    return 2
 
 
 def main(argv: list[str]) -> int:
@@ -583,10 +679,10 @@ def main(argv: list[str]) -> int:
     if args.self_test:
         return self_test()
 
+    as_json = args.format == "json"
     repo_root = Path(args.repo).resolve()
     if not repo_root.is_dir():
-        sys.stderr.write(f"error: repo directory does not exist: {repo_root}\n")
-        return 2
+        return emit_error(f"repo directory does not exist: {repo_root}", as_json)
 
     sg_cmd = resolve_ast_grep()
     if sg_cmd is None:
@@ -594,7 +690,7 @@ def main(argv: list[str]) -> int:
             "ast-grep unavailable (install `@ast-grep/cli` or ensure `npx` is reachable). "
             "Fall back to prose checks in bmo-block-reviewer."
         )
-        if args.format == "json":
+        if as_json:
             print(json.dumps({"status": "unavailable", "message": msg}))
         else:
             print(msg)
@@ -602,28 +698,36 @@ def main(argv: list[str]) -> int:
 
     if args.profiles:
         profiles = [p.strip() for p in args.profiles.split(",") if p.strip()]
+        unknown = [p for p in profiles if p not in ALL_PROFILES]
+        if not profiles or unknown:
+            return emit_error(
+                f"unknown profile(s): {', '.join(unknown) or '(empty)'}; expected subset of {', '.join(ALL_PROFILES)}",
+                as_json,
+            )
     else:
         profiles = detect_profiles(repo_root)
 
     line_filter: dict[str, set[int]] | None = None
-    if args.all:
-        targets = [repo_root]
-        scope_label = "full repo"
-    elif args.paths:
-        targets = [(repo_root / p).resolve() if not Path(p).is_absolute() else Path(p) for p in args.paths]
-        targets = [t for t in targets if t.exists()]
-        scope_label = "explicit paths"
-    else:
-        base_ref = args.base or default_base_ref(repo_root)
-        targets, line_filter, scope_label = collect_diff_targets(repo_root, base_ref, staged_only=args.staged)
-        if args.whole_files:
-            line_filter = None
-
     try:
+        if args.all:
+            targets = [repo_root]
+            scope_label = "full repo"
+        elif args.paths:
+            resolved = [(repo_root / p).resolve() if not Path(p).is_absolute() else Path(p) for p in args.paths]
+            missing = [str(p) for p in resolved if not p.exists()]
+            if missing:
+                return emit_error(f"path(s) do not exist: {', '.join(missing)}", as_json)
+            targets = resolved
+            scope_label = "explicit paths"
+        else:
+            base_ref = args.base or default_base_ref(repo_root)
+            targets, line_filter, scope_label = collect_diff_targets(repo_root, base_ref, staged_only=args.staged)
+            if args.whole_files:
+                line_filter = None
+
         findings, checked_rules, partial_rules = run_scan(sg_cmd, repo_root, profiles, targets, line_filter)
     except RuntimeError as exc:
-        sys.stderr.write(f"error: {exc}\n")
-        return 2
+        return emit_error(str(exc), as_json)
 
     issues_count = sum(1 for f in findings if f["tier"] == "issue")
     styles_count = sum(1 for f in findings if f["tier"] == "style")

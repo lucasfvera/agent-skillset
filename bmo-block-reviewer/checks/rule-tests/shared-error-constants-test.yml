@@ -3,7 +3,13 @@ valid:
   - if (err.code === ERROR_CODES.NOT_FOUND) {}
   - if (err instanceof NotFoundError) {}
   - const msg = err.message;
+  - if (toast.message === 'Saved') {}
+  - if (chat.message.startsWith('/')) {}
+  - if (wsEvent.message.includes('ping')) {}
+  - if (state.banner.message === 'beta') {}
 invalid:
   - if (err.message === 'not found') {}
   - if (err.message.includes('duplicate key')) {}
   - if (error.message.startsWith('ECONNREFUSED')) {}
+  - if (apiError.message === 'rate limited') {}
+  - if (res.error.message.includes('timeout')) {}
