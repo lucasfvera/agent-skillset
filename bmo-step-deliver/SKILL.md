@@ -157,7 +157,7 @@ If the repository documents architecture or testing conventions, read what appli
 
 Stay within scope. Avoid unrelated cleanup unless the user asked or it blocks the change.
 
-- **Slice size & test co-location:** Target **~100 LOC of production code (soft ceiling ~200 LOC, excluding tests, lockfiles, snapshots, and generated code)** per unit, and **always include the unit's tests in the same slice**. If production code grows past ~200 LOC mid-implementation, split the remaining vertical behavior (with its tests) into `Un+1` via [Mid-flight scope correction](#mid-flight-scope-correction) rather than shipping an oversized slice or separating tests from implementation.
+- **Slice size & test co-location:** Target **~100–200 LOC of production code (hard cap 400 LOC, excluding tests, lockfiles, snapshots, SVGs, and generated code)** per unit, and **always include the unit's tests in the same slice**. Check actual production LOC via `git diff --numstat` before handing off or committing; if production code exceeds 400 LOC without prior user approval, split the remaining vertical behavior (with its tests) into `Un+1` via [Mid-flight scope correction](#mid-flight-scope-correction) or pause for explicit user approval rather than shipping an oversized slice or separating tests from implementation.
 
 ### 3) Verify
 
