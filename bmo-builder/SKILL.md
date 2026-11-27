@@ -54,10 +54,11 @@ Phase 1 writes only the plan file and edits zero source files.
 - **Record** the absolute path to the plan file.
 - Parse the list of implementation units (`U1`, `U2`, …) in order from the plan.
 - Record **Repos (n)** from the git roots named in the plan.
+- **LOC gate (hard cap 400 production LOC per unit):** Check every unit's `Estimated production LOC` (excluding tests, lockfiles, snapshots, SVGs, and generated code). When any unit exceeds **400** production LOC, split the plan into stacked `U1..Uk` units before Phase 2. If the user explicitly asked for a single unit/PR and the estimate still exceeds 400 production LOC, **stop after Phase 1** (status `stopped`) and ask the user once to choose between splitting into stacked PRs or approving the oversized slice—even when `defaults: yes` is set.
 
 If the plan has **Open questions (blocked)** with no `defaults: yes` from the user, **stop** and list blockers. Do not implement. Status `stopped`.
 
-**Done:** Plan file exists on disk, every `U*` is listed in order, repos count is recorded, and there are no unresolved blocked questions.
+**Done:** Plan file exists on disk, every `U*` is listed in order with ≤ 400 estimated production LOC (or explicit user approval for an oversized slice), repos count is recorded, and there are no unresolved blocked questions.
 
 ---
 
@@ -128,7 +129,7 @@ Repeat for **each** unit `U1`, `U2`, … in plan order until all units are done.
 
 **Stacked branches by default (when 2+ units touch a repo):**
 - If a repo has only **1 unit** in the plan, keep it on `$BRANCH`.
-- If a repo has **2+ units** in the plan (`U1 .. Uk`), give each unit its own stacked branch so each unit opens as a focused, self-contained PR (~100 LOC target / ~200 LOC production-code soft ceiling, with its tests included):
+- If a repo has **2+ units** in the plan (`U1 .. Uk`), give each unit its own stacked branch so each unit opens as a focused, self-contained PR (~100–200 production LOC target, 400 production LOC hard cap, with its tests included):
   - Before starting `U1` in that repo: `git -C "$WORKTREE_PATH" checkout -B "${BRANCH}-u1"` (from `main`/base).
   - Before starting `Un` (`n > 1`) in that repo: `git -C "$WORKTREE_PATH" checkout -b "${BRANCH}-u${n}"` on top of the committed tip of the previous unit's branch in that repo.
 
@@ -170,7 +171,7 @@ Each subagent reads [`bmo-block-reviewer/SKILL.md`](../bmo-block-reviewer/SKILL.
 ### 3c — Apply review fixes
 
 1. Merge findings from all block reviewers, prioritizing `[issue]` findings before `[style]` findings.
-2. **Fix** every `[issue]` and actionable `[style]` finding in the orchestrator, same unit scope, only under `WORKTREE_PATH`.
+2. **Fix** every `[issue]` and actionable `[style]` finding in the orchestrator, same unit scope, only under `WORKTREE_PATH`. Keep fixes proportional—prefer local edits over adding large new helper modules or fallback frameworks.
 3. Re-run the **narrowest verification** from the plan/deliver step if fixes touched behavior.
 4. If a reviewer reported **no issues**, note it and continue.
 
@@ -182,9 +183,10 @@ Do **not** commit before fixes are applied.
 
 1. Read [`bmo-commit`](../bmo-commit/SKILL.md).
 2. Stage **only** files changed for **`Un`** in that repo's **WORKTREE_PATH** (`git -C "$WORKTREE_PATH" add <paths>` or shell `cwd` = `WORKTREE_PATH`). This builder **explicitly authorizes** staging for the completed unit.
-3. Run `/bmo-commit` on that worktree's index. If the index is empty after staging, stop and report. Do not skip commit silently. Status `stopped`.
+3. **Pre-commit LOC gate (hard cap 400 production LOC):** Run `git -C "$WORKTREE_PATH" diff --cached --numstat` and sum added+deleted lines across production files (excluding `*.test.*`, `*.spec.*`, lockfiles, snapshots, `*.svg`, and generated files). If the total exceeds **400** production LOC without prior user approval for an oversized slice, unstage the uncoupled files into `Un+1` (commit `Un` at ≤ 400 production LOC, then deliver `Un+1` on `${BRANCH}-u<n+1>`) or **stop and ask the user** before committing.
+4. Run `/bmo-commit` on that worktree's index. If the index is empty after staging, stop and report. Do not skip commit silently. Status `stopped`.
 
-**Done for 3d:** Each worktree in scope for `Un` has a new commit (hash from `git -C "$WORKTREE_PATH" log -1`); no commit was created in any `REPO_ROOT`. Or this run stopped because the index was empty.
+**Done for 3d:** Staged production LOC verified ≤ 400 (or explicitly user-approved); each worktree in scope for `Un` has a new commit (hash from `git -C "$WORKTREE_PATH" log -1`); no commit was created in any `REPO_ROOT`. Or this run stopped because the index was empty.
 
 ### 3e — Advance
 
@@ -307,6 +309,7 @@ Multi-repo plans: commit **per git root** per unit; never commit repo B because 
 | Situation | Action |
 |-----------|--------|
 | Worktree setup fails for a required repo | Stop before Phase 3; report which repo failed |
+| Unit plan or staged diff exceeds 400 production LOC | Split into stacked `U1..Uk` units; if single-PR was requested or splitting is blocked, stop and ask the user for explicit approval |
 | Verification fails after deliver or fixes | Fix within unit if small; otherwise stop with smallest next action |
 | Subagent tool unavailable | Review blocks **sequentially** in the orchestrator using `bmo-block-reviewer`. Do not skip review. |
 | Plan revision needed mid-flight | Update plan file **Revision** section per `bmo-step-deliver`, restate scope, then continue current or next unit |

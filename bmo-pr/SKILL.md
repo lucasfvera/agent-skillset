@@ -28,9 +28,9 @@ Give the reviewer what the diff cannot: why the change exists, any rejected alte
    ```
 
 2. Read commit bodies before the diff for motivation, then verify every claim against the code (including deleted lines when fixing a bug).
-3. **Slice size:** Target ~100 LOC of production code (soft ceiling ~200 LOC, excluding tests, lockfiles, snapshots, and generated code), keeping tests in the same PR as the code they verify. When an unstacked branch exceeds ~200 production LOC, warn the user and offer to split via [`bmo-stack-prs`](../bmo-stack-prs/SKILL.md); if kept together, state why in one bullet under `## Decisions`.
+3. **Slice size (hard cap 400 production LOC):** Compute production LOC via `git --no-pager diff --numstat origin/<base>...HEAD` (excluding tests, lockfiles, snapshots, SVGs, and generated code), keeping tests in the same PR as the code they verify. Target ~100–200 production LOC. Whenever **any** PR slice (standalone or stacked) exceeds **400 production LOC** without explicit user approval, **stop before publishing**, show the per-file LOC breakdown, and ask the user whether to split via [`bmo-stack-prs`](../bmo-stack-prs/SKILL.md) or approve the oversized PR (if approved, record why in one bullet under `## Decisions`).
 
-**Done:** Commit history, diff, and open PRs are checked; every claim planned for the body is verified in code.
+**Done:** Commit history, diff, production LOC count (≤ 400 or user-approved), and open PRs are checked; every claim planned for the body is verified in code.
 
 ---
 
