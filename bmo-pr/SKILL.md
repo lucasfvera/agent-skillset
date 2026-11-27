@@ -56,7 +56,11 @@ Give the reviewer what the diff cannot: why the change exists, any rejected alte
 
 ### Title
 
-Match repository convention in order: (1) explicit user request, (2) repo docs or PR workflows (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`, `.github/workflows/`), (3) dominant pattern in `git log -n 20 origin/<base> --oneline`, (4) Conventional Commits (`<type>: <Subject>`). Use imperative present tense, ≤ 72 characters, no trailing period. Reuse a single commit's subject when it states the outcome.
+**Title gate first.** Find the check that validates PR titles or commit headers: a PR-title workflow (`.github/workflows/*title*`, or any workflow running commitlint or a semantic-PR action) and its config (`.commitlintrc*`, `commitlint.config.*`, `"commitlint"` in `package.json`). Its rules (allowed types, scope format, subject case, maximum header length) are hard constraints over every source below: on squash-merge repos the PR title becomes the commit on `<base>`, so a failing title blocks CI and release tooling.
+
+Within those constraints, match repository convention in order: (1) explicit user request, (2) repo docs or PR workflows (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`, `.github/workflows/`), (3) dominant pattern in `git log -n 20 origin/<base> --oneline`, (4) Conventional Commits (`<type>(<optional-scope>): <subject>`, subject starting lower-case). Use imperative present tense, ≤ 72 characters (or the gate's lower maximum), no trailing period. Reuse a single commit's subject when it states the outcome and passes the gate. When a user-supplied title lacks a valid type prefix, prepend the type that matches the diff.
+
+**Done for the title:** Every rule found in the title gate is checked against the final title (type in the allowed list, subject case, length, no trailing period), or no gate exists.
 
 ### Body
 
