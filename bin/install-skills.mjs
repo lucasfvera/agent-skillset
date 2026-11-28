@@ -11,7 +11,7 @@ const targetRoot = process.env.BMO_SKILLS_DIR
   : path.join(cursorRoot, "skills");
 const hooksDest = path.join(cursorRoot, "hooks");
 const hooksSrc = path.join(packageRoot, "hooks");
-const hookFiles = ["pr-checks.md", "pr-checks.py"];
+const hookFiles = ["pr-checks.md", "pr-checks.py", "no-media-hosting.py"];
 const retiredSkills = ["bmo-linear-pipeline", "bmo-review-report"];
 
 const skills = fs
@@ -57,7 +57,7 @@ fs.mkdirSync(skillHooksDir, { recursive: true });
 fs.copyFileSync(path.join(hooksSrc, "pr-checks.md"), path.join(skillHooksDir, "pr-checks.md"));
 
 if (!process.env.BMO_SKILLS_DIR) {
-  console.log(`Installing PR-checks hook to ${hooksDest}`);
+  console.log(`Installing hooks to ${hooksDest}`);
   fs.mkdirSync(hooksDest, { recursive: true });
   for (const name of hookFiles) {
     const dest = path.join(hooksDest, name);
@@ -93,15 +93,16 @@ function installHookEntries(destPath, fragmentPath) {
 
   for (const [event, entries] of Object.entries(fragment.hooks || {})) {
     const existing = Array.isArray(current.hooks[event]) ? current.hooks[event] : [];
-    const kept = existing.filter((entry) => !isPrChecksEntry(entry));
+    const kept = existing.filter((entry) => !isBmoHookEntry(entry));
     current.hooks[event] = [...kept, ...entries];
   }
 
   fs.writeFileSync(destPath, `${JSON.stringify(current, null, 2)}\n`);
-  console.log(`  ✓ merged pr-checks into ${destPath}`);
+  console.log(`  ✓ merged bmo hooks into ${destPath}`);
 }
 
-function isPrChecksEntry(entry) {
+// Entries this installer owns; replaced on every install so re-running never duplicates them.
+function isBmoHookEntry(entry) {
   const command = entry && typeof entry.command === "string" ? entry.command : "";
-  return command.includes("pr-checks.py");
+  return hookFiles.some((name) => name.endsWith(".py") && command.includes(name));
 }

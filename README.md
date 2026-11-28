@@ -6,7 +6,7 @@ Portable agent skills for planning vertical slices, shipping verified code, runn
 npx github:lucasfvera/agent-skillset
 ```
 
-Copies every `bmo-*` skill into `~/.cursor/skills/` (or `$BMO_SKILLS_DIR` when set) and installs the pre-PR checks hook (`hooks/pr-checks.py`) into `~/.cursor/hooks/`. Environments without shell hooks enforce the same pre-PR checks directly via [`hooks/pr-checks.md`](hooks/pr-checks.md) inside `/bmo-builder` and `/bmo-pr`.
+Copies every `bmo-*` skill into `~/.cursor/skills/` (or `$BMO_SKILLS_DIR` when set) and installs two hooks into `~/.cursor/hooks/`: the pre-PR checks hook (`hooks/pr-checks.py`) and `hooks/no-media-hosting.py`, which blocks releases, tags, and gists so PR media goes only to PR attachments. Environments without shell hooks enforce the same pre-PR checks directly via [`hooks/pr-checks.md`](hooks/pr-checks.md) inside `/bmo-builder` and `/bmo-pr`.
 
 ## Manual Workflow
 
@@ -28,6 +28,7 @@ Diagram sources live in [`docs/diagrams/`](docs/diagrams/): open a `.excalidraw`
 | `/bmo-merge-conflicts` | Analyzes git rebase merge conflicts side-by-side (suggestions only by default; resolves files only on explicit ask). |
 | `/bmo-merge-risk` | Assesses PR merge risk (`low` / `medium` / `high`) across alignment, impact, verification, rollback cost, and error detection; runs standalone or as a subagent inside `/bmo-pr`. |
 | `/bmo-pr` | Opens or updates concise GitHub PRs (~100–200 LOC production soft ceiling, co-located tests) with green pre-PR checks (`hooks/pr-checks.md`), optional diff sketches, before/after evidence, and an embedded `/bmo-merge-risk` subagent report. |
+| `/bmo-record-evidence` | Records before/after evidence for any PR (video with a step-by-step panel, stills, and pass/fail assertions) by running one scripted scenario on the base and PR commits in turn; covers browser flows, console request replays, DB queries, and CLIs, and keeps the output in `~/bmo-evidence/` with a side-by-side `index.html`. |
 | `/bmo-stack-prs` | Infers stacked branch order from git history, pushes out-of-sync stack heads, and opens stacked GitHub PRs (`Part i of k — depends on #prev`) with per-slice `/bmo-merge-risk` reports. |
 | `/bmo-step-deliver` | Delivers scoped ~100–200 LOC vertical slices (with tests) one unit at a time, running narrow verification and emitting a structured review digest before pausing for `continue`. |
 | `/bmo-step-planner` | Authors a sliced markdown plan (`U1`, `U2`, …) with ~100–200 LOC vertical units, co-located tests, backing docs, boundary failure modes, and rollback seams before writing code. |

@@ -7,6 +7,12 @@
         "matcher": "gh\\s+pr\\s+create",
         "failClosed": true,
         "timeout": 30
+      },
+      {
+        "command": "./hooks/no-media-hosting.py",
+        "matcher": "\\b(gh|git|npm|yarn)\\b",
+        "failClosed": true,
+        "timeout": 10
       }
     ],
     "postToolUse": [
