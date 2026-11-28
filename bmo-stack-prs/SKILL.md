@@ -132,7 +132,7 @@ Follow [`bmo-pr/SKILL.md`](../bmo-pr/SKILL.md) (`## 3`, `## 4`, and `## 5`) as t
 
 1. **Scope:** Each slice stays self-contained (~100 LOC target / ~200 LOC production soft ceiling, with its tests included in the same PR) and describes only its own diff (`<base_i>...<head_i>`).
 2. **Stack line:** Place one line below the what/why opening: `Part i of k — depends on #<prev>.` (or `Part 1 of k.` for slice 1). After creating a child PR, append `Followed by #<child>.` to the parent body when useful.
-3. **Visual evidence:** Run [`../bmo-pr/screenshots.md`](../bmo-pr/screenshots.md) for any slice that changes UI surfaces or user-visible copy/constants (skipping release-free when tooling is absent).
+3. **Evidence:** Apply `bmo-pr` step 3 to each slice.
 4. **Merge risk (one read-only subagent per gap slice):** Spawn one parallel read-only subagent per gap slice using [`../bmo-pr/references/merge-risk-subagent.md`](../bmo-pr/references/merge-risk-subagent.md) (which runs [`../bmo-merge-risk/SKILL.md`](../bmo-merge-risk/SKILL.md) against `<base_i>...<head_i>`) and embed each returned block under `## Merge risk` before calling `gh pr create`.
 
 **Done:** Every gap slice has a concise temporary body file with its one-line stack link, `## Evidence`, and embedded `bmo-merge-risk` subagent report.

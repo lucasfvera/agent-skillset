@@ -43,12 +43,12 @@ Give the reviewer what the diff cannot: why the change exists, any rejected alte
 
 ---
 
-## 3. Capture visual evidence when UI changes
+## 3. Record evidence when behavior is observable
 
-- **UI or user-visible copy changes** (components, routes/pages, templates, CSS/tokens, layouts, or template-rendered copy constants such as `*.constants.ts`) → read [`screenshots.md`](screenshots.md) and capture before/after stills via `gh pr create --attach` or `gh image`. Never create GitHub releases, prereleases, or git tags for media; when tooling is missing, record `Skipped — screenshot tooling unavailable in this environment` under `## Evidence`.
-- **Non-UI changes** → skip `screenshots.md`; record concise behavior or test evidence in Step 4.
+- **Observable behavior:** the change alters something a person can see by running the system, such as a page, copy, a request's response, stored data, CLI output, or logs. Read [`../bmo-record-evidence/SKILL.md`](../bmo-record-evidence/SKILL.md) and follow it from step 1. It records before/after video, stills, and assertions, then uploads them through [`attach-media.md`](attach-media.md).
+- **Nothing observable:** for example docs, types only, or test-only changes. Put short behavior or test evidence in Step 4.
 
-**Done:** UI changes have release-free images ready (or an explicit `Skipped` line); non-UI changes proceed directly to Step 4.
+**Done:** The evidence is attached per `attach-media.md`, or `## Evidence` has a `Skipped` line naming what was missing, or the change has nothing observable and goes straight to Step 4.
 
 ---
 
@@ -121,7 +121,7 @@ gh pr create --base <base> --head <branch> \
   --body-file <temp-path>
 ```
 
-Append `--attach "$OUT/<file>.png"` per local screenshot when using `gh --attach` ([`screenshots.md`](screenshots.md)). Delete `<temp-path>` after publishing and reply with the PR URL.
+Add one `--attach "<path>"` per media file when [`attach-media.md`](attach-media.md) chose Path A. Delete `<temp-path>` after publishing and reply with the PR URL.
 
 **Update an existing PR:**
 
